@@ -2,20 +2,19 @@ import 'dart:io';
 
 import 'package:image/image.dart' as img;
 
-/// Converts the source `icon.webp` into PNGs used by flutter_launcher_icons:
-/// a full 1024 icon and a padded foreground for Android adaptive icons.
+/// Converts the source icon into PNGs used by flutter_launcher_icons:
+/// a full 1024 icon and a full-bleed foreground for Android adaptive icons.
 void main() {
-  const String src =
-      'assets/SkywardTowers_additional_assets_webp/icon.webp';
+  const String src = 'assets/generated/app_icon_source.png';
   final File file = File(src);
   if (!file.existsSync()) {
     stderr.writeln('Source icon not found: $src');
     exit(1);
   }
 
-  final img.Image? decoded = img.decodeWebP(file.readAsBytesSync());
+  final img.Image? decoded = img.decodeImage(file.readAsBytesSync());
   if (decoded == null) {
-    stderr.writeln('Failed to decode webp.');
+    stderr.writeln('Failed to decode source image.');
     exit(1);
   }
 
