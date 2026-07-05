@@ -137,9 +137,17 @@ bottom inset must remain 0.
 The push notification icon must be:
 
 - Vector Drawable XML (`<vector>`), 24×24 dp viewport
-- Monochrome white on transparent background (`android:fillColor="#FFFFFF"`)
-- **NOT** the same shape as the launcher icon — reviewers pattern-match
-  identical launcher + notification icons as a template fingerprint
+- **Shaped as a flame / fire** — this is the visual identity of the
+  gray-flow ecosystem and users recognise it. See
+  `.cursor/rules/gray_part_pitfalls.md` §15 for the reference variants.
+  Bells / stars / dots / generic app-logo miniatures → rejected.
+- **Colour is flexible.** Solid white on transparent, solid black, or
+  a duotone red/orange are all acceptable, as long as the flame
+  silhouette reads clearly at 24×24 dp on both light and dark
+  system-tray backgrounds. **Not required to be monochrome.**
+- **Silhouette must differ from the launcher icon.** Reviewers pattern-
+  match identical launcher + notification icons as a template
+  fingerprint.
 
 If you replace this file, keep it in `res/drawable/` (not `mipmap-*/`).
 

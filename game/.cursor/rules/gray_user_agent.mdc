@@ -1,34 +1,133 @@
 ---
-description: Gray-flow User-Agent must carry appid/appname (Zeus & Magma games only)
-globs: **/device_agent.dart,**/http_client.dart
-alwaysApply: false
+description: Gray-flow User-Agent — device authenticity + slot-vs-crash identity suffix
+globs: **/ua_forge.dart,**/device_agent.dart,**/http_client.dart,**/web_stage.dart,**/content_screen.dart
+alwaysApply: true
 ---
 
-# Gray-flow User-Agent identity suffix
+# Gray-flow User-Agent contract
 
-**Condition:** apply ONLY to games themed around **Zeus** or **Magma**.
-For any other game theme, do NOT add this suffix.
+## 1. Baseline rules (apply to every gray-flow build)
 
-When building the gray-flow HTTP/WebView User-Agent for a Zeus or Magma game,
-append the app identity after the standard browser UA, space-separated:
+The forged User-Agent is used by BOTH the HTTP client that hits the
+config endpoint AND the WebView (`setUserAgent`). It must:
+
+- **Look like a real Chrome on a real Android device.** Include a
+  current Chrome major version, WebKit fragment, real Android version
+  and a plausible device model / build id.
+- **NEVER contain** any of these substrings (case-insensitive):
+  - `WebView` / `wv` (would instantly reveal the shell)
+  - `Dart` / `Flutter` (Flutter's default UA leaks this)
+  - the app's package name, class names, or SDK identifiers
+- **Reflect the actual device on which the app runs.** Query
+  `device_info_plus` for model / build id / Android release, do not
+  hardcode a fixed device string. Two identical UAs across ten
+  installs are a cluster signal for scanners.
+- **Be identical between HTTP + WebView.** The partner backend
+  cross-checks the two; a mismatch breaks session continuity.
+- **Bump the Chrome major version** on every project. A stale major
+  (e.g. Chrome/112 on an app shipping in 2026) is trivially detectable.
+
+Canonical shape (no identity suffix):
 
 ```
-<browser UA> appid/<bundleId> appname/<AppName>
+Mozilla/5.0 (Linux; Android 15; SM-S931U Build/AP3A.240905.015.A2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.6834.163 Mobile Safari/537.36
 ```
 
-- `appid/` → the application id / bundle id (e.g. `com.super.game`)
-- `appname/` → a space-free app name token (e.g. `GameNaming`)
+Source the Chrome / WebKit version fragments through the obfuscator
+(`unlockChromeVersion()` / `unlockWebkitVersion()` in
+`lib/env/secure_strings.dart`) — never as plaintext literals.
 
-Example (full):
+---
+
+## 2. Identity suffix — slot vs crash games
+
+Some partner backends require the app identity to be appended to the
+User-Agent so their attribution / cashier routing works. **Whether the
+suffix is required depends on the game theme, not on the partner:**
+
+| Game theme category | Examples | Append `appid/…` `appname/…`? |
+|---|---|---|
+| **Slot games** | Zeus, Magma, fruit-machine, one-armed bandit, roulette, poker, book-of-<x>, wheel-of-<x>, mines with a slot skin, lucky-spinner | **YES — required** |
+| **Crash games** | Aviator / rocket, plane, jetX, spaceman, balloon, coin-flip crash, multiplier-tap crash | **NO — do not append** |
+
+If you are asked to generate a gray-flow shell and the brief does not
+make the category unambiguous, **STOP and ask the user** which
+category the game belongs to. Guessing is wrong. Never ship the
+suffix "just in case" — a suffix on a crash-game build corrupts the
+partner's tracking and gets the account flagged.
+
+### Slot-game suffix — exact format
+
+Append after the standard browser UA, space-separated, in this order:
+
+```
+<browser UA> appid/<bundleId> appname/<AppNameToken>
+```
+
+- `appid/` — the application id / package name, exactly as it appears
+  in `TowerFacade.packageId` (e.g. `com.example.demo`).
+- `appname/` — the app name written **without spaces** (PascalCase,
+  e.g. `AwesomeSlots`). Do NOT URL-encode; do NOT lowercase.
+
+Full example (slot build):
 
 ```
 Mozilla/5.0 (Linux; Android 15; SM-S931U Build/AP3A.240905.015.A2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.6834.163 Mobile Safari/537.36 appid/com.super.game appname/GameNaming
 ```
 
-Rules:
-- The same augmented UA must be used by BOTH the HTTP client and the WebView
-  (`setUserAgent`), so traffic stays consistent.
-- `appname` must contain no spaces (use PascalCase).
-- Keep the suffix as the very last segment, after `Mobile Safari/537.36`.
-- Source the values from the central config (e.g. app settings / facade) —
-  never hardcode at the call site.
+Rules for the suffix:
+
+- Must be the **very last segment** — after `Mobile Safari/537.36`.
+- Source `bundleId` and `AppName` from `TowerFacade` — never hardcode
+  at the call site.
+- Same augmented UA on HTTP + WebView (see §1).
+- If the theme later flips from slot → crash (e.g. rebrand), the
+  suffix must be REMOVED and a fresh build shipped — the value is
+  cached server-side per install.
+
+---
+
+## 3. Decision procedure for AI agents
+
+When generating or modifying a gray-flow project:
+
+1. Locate the game brief / theme description in the customer request.
+2. Match it against the table in §2:
+   - **Clearly a slot theme** → include the suffix in `ua_forge.dart`.
+   - **Clearly a crash theme** → omit the suffix.
+   - **Ambiguous or missing** → do not scaffold. Ask the user with a
+     single batched question, e.g.:
+
+     > Is this a **slot** game (spinning reels / roulette / cards) or
+     > a **crash** game (rising multiplier / aviator / rocket)? The
+     > answer changes the User-Agent format we must ship — I need to
+     > know before continuing.
+
+3. Write the decision as a code comment above `towerHttp` in
+   `lib/bridge/ua_forge.dart`:
+
+   ```dart
+   // GAME THEME CATEGORY: slot  (appid/appname suffix REQUIRED)
+   // — or —
+   // GAME THEME CATEGORY: crash (no appid/appname suffix)
+   ```
+
+   This makes the choice auditable in every future project fork.
+
+---
+
+## 4. Verification
+
+Before shipping any build:
+
+- [ ] Print `towerHttp.userAgent` in a debug run and confirm it
+      matches the canonical shape from §1.
+- [ ] Confirm the suffix presence matches the game theme per §2.
+- [ ] Grep the final APK's string table for `Dart`, `Flutter`,
+      `WebView`, `wv/`, and the Chrome version from the previous
+      project — all must be absent.
+- [ ] Load `https://www.whatismybrowser.com/detect/what-is-my-user-agent`
+      in the WebView and screenshot the parsed result — it must
+      identify as Chrome on Android with the current major.
+
+If any check fails, do not ship — fix `ua_forge.dart` first.

@@ -397,6 +397,529 @@ flutter build appbundle --release --obfuscate --split-debug-info=build/debug_inf
 
 ---
 
+## 11. 16 KB page-size support (Android 15+ / Flutter + Kotlin)
+
+### Symptom
+
+App crashes on start on Android 15 devices with a 16 KB page size
+kernel, or the Play Store submission is rejected with:
+
+> Your app targets Android 15+ but is not compatible with 16 KB
+> page sizes. From November 1, 2025, all apps targeting Android 15+
+> must support this.
+
+### Cause
+
+Flutter's engine + all native `.so` libraries must be built with
+`-Wl,-z,max-page-size=16384` so their ELF segments align on 16 KB
+boundaries. Older Flutter / Kotlin / Gradle plugin combinations still
+emit 4 KB-aligned binaries and fail on the new devices.
+
+### Fix
+
+1. **Flutter channel** — upgrade to a Flutter that ships with the
+   16 KB-aligned engine (Flutter 3.29+ on stable). Verify:
+
+   ```powershell
+   flutter --version
+   # Flutter 3.29.0 or newer required
+   ```
+
+2. **Android Gradle Plugin** — bump to `8.5.2` or newer in
+   `android/settings.gradle.kts`:
+
+   ```kotlin
+   plugins {
+       id("com.android.application") version "8.5.2" apply false
+       id("org.jetbrains.kotlin.android") version "1.9.24" apply false
+       id("dev.flutter.flutter-plugin-loader") version "1.0.0"
+   }
+   ```
+
+3. **NDK version** — `ndkVersion = "27.0.12077973"` (or newer) in
+   `android/app/build.gradle.kts`. The default `flutter.ndkVersion`
+   only satisfies this on recent Flutter channels; pin explicitly if
+   your channel is older.
+
+4. **Native plugin audit.** Any dependency that ships prebuilt `.so`
+   files must publish 16 KB-aligned versions. As of 2026 the ones
+   used by this template are all fine:
+
+   - `webview_flutter_android` (uses system WebView, no `.so`)
+   - `appsflyer_sdk >= 6.16.0`
+   - `firebase_messaging >= 15.2.0`
+   - `flutter_secure_storage >= 10.0.0`
+   - `flutter_local_notifications >= 18.0.0`
+
+   If you introduce a plugin with an older native binary, verify with:
+
+   ```powershell
+   apkanalyzer files list build\app\outputs\apk\release\*.apk `
+     | Select-String '\.so'
+   # then for each .so:
+   readelf -l <path/to.so> | Select-String LOAD
+   # look for `Align 4000` (4 KB) vs `Align 4000` (WRONG) — must be `4000` (16 KB)
+   ```
+
+5. **Gradle properties.** Add / verify:
+
+   ```properties
+   # android/gradle.properties
+   android.useAndroidX=true
+   android.enableJetifier=true
+   android.experimental.enableNewResourceShrinker=true
+   ```
+
+6. **Full clean rebuild.** After bumping any of the above:
+
+   ```powershell
+   cd android ; .\gradlew.bat --stop ; cd ..
+   flutter clean
+   flutter pub get
+   Remove-Item android\app\src\main\java\io\flutter\plugins\GeneratedPluginRegistrant.java -ErrorAction SilentlyContinue
+   flutter build apk --release --obfuscate --split-debug-info=build\debug_info
+   ```
+
+7. **Verification on a real device / emulator.**
+
+   ```powershell
+   # From an Android 15 emulator with 16 KB pages enabled:
+   adb shell getconf PAGE_SIZE
+   # Must print 16384
+   adb install build\app\outputs\apk\release\app-release.apk
+   adb shell am start -n <package>/<activity>
+   # App must open without SIGSEGV or "cannot map segment" errors.
+   ```
+
+---
+
+## 12. Push-permission "Skip" button barely visible
+
+### Symptom
+
+On the notification-permission screen the small "Skip" text link
+disappears against the background artwork on some devices (dark hero
+image + white 85 %-opacity text = 1.5:1 contrast, fails WCAG). QA
+misses it entirely, users perceive there is no way to decline, then
+press Accept and hit deny in the system dialog — burning the one
+allowed permission prompt.
+
+### Fix
+
+Skip must render as a **real gradient button**, not a subdued text
+link. Use the same gold / brand gradient as the Accept button (or a
+muted variant of it), matching the Accept button's radius / height /
+margin. The visual weight of Accept > Skip must come from **size and
+position**, never from opacity.
+
+Concrete rules:
+
+- Skip button height ≥ 44 dp (Google minimum tap target).
+- Same corner radius as Accept (usually `BorderRadius.circular(50)`
+  or `16`).
+- Same gradient family — either the identical gold, or a slightly
+  darker variant with ≥ 4.5:1 contrast against the background.
+- Position: directly below Accept, gap 12–18 dp, both centered
+  horizontally within the same padding rail.
+- No `opacity: 0.85` global multiplier — kill that pattern.
+
+If the client insists on a "text-link Skip", require a solid
+translucent pill behind the label:
+
+```dart
+Container(
+  padding: EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+  decoration: BoxDecoration(
+    color: Colors.black.withValues(alpha: 0.55),
+    borderRadius: BorderRadius.circular(24),
+    border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
+  ),
+  child: Text('Skip', style: ...),
+)
+```
+
+---
+
+## 13. Button label baseline drift (labels look tilted / off-center)
+
+### Symptom
+
+The label inside a `PrimaryButton` sits visually higher or lower than
+the geometric center of the pill, or looks off-axis relative to the
+icon next to it. Especially visible on the loading screen "Retry",
+the push-permission "Accept / Skip", and the game menu buttons.
+
+### Cause
+
+Most bespoke button widgets stack `Row(children:[Icon, Text])` inside
+a `Container` without an explicit vertical baseline align. When the
+font has different top / bottom bearings than the icon glyph, the
+row appears tilted.
+
+### Fix (mandatory pattern for every button in the shell)
+
+Wrap the label in a `Baseline`-aware container and pin cross-axis
+alignment to `CrossAxisAlignment.center`. Then override the text's
+`height` line-height to 1.0 to remove font-provided top padding:
+
+```dart
+Row(
+  mainAxisAlignment: MainAxisAlignment.center,
+  crossAxisAlignment: CrossAxisAlignment.center, // hard-set
+  children: [
+    if (icon != null) ...[
+      Icon(icon, size: 22),
+      const SizedBox(width: 8),
+    ],
+    Text(
+      label,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        height: 1.0,          // ← removes baseline drift
+        letterSpacing: 0.3,
+      ),
+    ),
+  ],
+)
+```
+
+If a design calls for an off-center label (e.g. `labelDx: -5` used in
+some existing widgets), verify visually in BOTH orientations — the
+offset that looks centered in portrait often looks tilted in landscape
+because the button width changes.
+
+---
+
+## 14. Landscape safe zone missed on camera / notch (~50 % of builds)
+
+### Symptom
+
+Rotated to landscape on a device with a punch-hole camera or notch
+on the LONG edge, the WebView content (or a screen background) is
+drawn UNDER the cutout — content clipped, buttons unreachable.
+Portrait works fine because the notch is on the short edge and
+`SafeArea` picks it up "for free".
+
+### Cause
+
+`SafeArea(bottom: false, child: WebViewWidget(...))` handles top +
+sides on the DEFAULT case, but many implementations only apply
+padding for `Orientation.portrait`. Any of these patterns is wrong:
+
+```dart
+// ❌ Only pads on portrait — landscape cutout is ignored
+padding: orientation == Orientation.portrait
+    ? EdgeInsets.only(top: viewPadding.top)
+    : EdgeInsets.zero,
+
+// ❌ Uses viewInsets (keyboard) instead of viewPadding (cutout)
+padding: MediaQuery.viewInsetsOf(context),
+```
+
+### Fix
+
+Always apply `viewPadding` on BOTH axes, gated only on orientation
+for the TOP / SIDES distinction:
+
+```dart
+final MediaQueryData mq = MediaQuery.of(context);
+final Orientation o = mq.orientation;
+final EdgeInsets safe = o == Orientation.landscape
+    ? EdgeInsets.only(
+        left: mq.viewPadding.left,
+        right: mq.viewPadding.right,
+        top: mq.viewPadding.top,       // some rotate the notch top-side
+      )
+    : EdgeInsets.only(top: mq.viewPadding.top);
+```
+
+Alternatively, use `SafeArea(bottom: false, child: ...)` which handles
+all four cases correctly — but only if you have NOT called
+`SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky)`
+in the same subtree without a matching `SafeArea`.
+
+**QA test:** on a Pixel 6+ / Samsung S23+ / any punch-hole device,
+rotate to landscape on:
+
+- Loading screen
+- Push-invite screen
+- No-Wi-Fi screen
+- WebView content screen
+
+Verify the cutout has a black gutter next to it. This must be in
+FINAL_CHECKLIST Part C §12.
+
+---
+
+## 15. Notification icon must be a flame — not necessarily monochrome
+
+### Symptom
+
+Reviewers / users perceive the app as "generic" or "spammy" because
+the small notification icon is a bell / dot / question mark placeholder.
+Alternatively the icon IS a flame but you drew it as a plain silhouette
+and it disappears against Android's automatic tint on some launchers.
+
+### Cause
+
+Android accepts any `<vector>` drawable as `ic_notification`, but the
+gray-flow contract with our partners requires the icon to be a
+**flame / fire shape** — this is the visual identity of the ecosystem
+and users recognize it. It does NOT have to be white / monochrome; a
+duotone red-and-black flame is allowed as long as the shape reads as
+fire at 24 × 24 dp.
+
+Reference silhouettes (any of these is acceptable):
+
+![Flame icon reference — solid black, red, and boxed red variants](notification_icon_reference.png)
+
+Bells, stars, generic app-logo miniatures, dot-with-exclamation → all
+reject.
+
+### Fix
+
+`android/app/src/main/res/drawable/ic_notification.xml` must:
+
+- Be a `<vector>` with a flame/fire `pathData` — not a raster.
+- Read as fire from ~ 24 × 24 dp (test in Android Studio's preview).
+- Have a silhouette clearly different from the launcher icon (a
+  reviewer must not confuse the two).
+- Colour freedom: solid white, solid black, or a two-tone red/orange
+  fill (`android:fillColor="#E11919"` etc.) are all fine.
+
+Do NOT ship the following as `ic_notification`:
+
+- The launcher icon shrunk down.
+- A monochrome version of the launcher icon.
+- Any shape that isn't recognisably fire.
+
+If you're generating from scratch and don't have the artwork, use the
+canonical flame path documented in `.cursor/rules/custom_screens.md`
+§"Notification Icon".
+
+---
+
+## 16. Launcher icon crops / upscales / has white borders on splash
+
+### Symptom (multiple related issues — happens ~70 % of the time)
+
+- Adaptive icon: the artwork zooms in and 60–90 % of the design is
+  hidden behind the mask (`AdaptiveIconDrawable` safe zone is 66 dp
+  of a 108 dp canvas, foreground must fit inside that).
+- Launcher preview looks like a giant coloured blob instead of a
+  legible icon.
+- On app start, a white rectangular frame flashes around the icon
+  before the loading screen — comes from `LaunchTheme` using the
+  legacy `@mipmap/ic_launcher` with a solid-colour windowBackground.
+- Rendering artifacts / soft edges from over-upscaling a small
+  source PNG.
+
+### Fix — three separate parts, all mandatory
+
+**A. Foreground artwork must sit inside the 66 % safe zone.**
+
+The `flutter_launcher_icons` `adaptive_icon_foreground` file should
+have its important content in the CENTER 66 % of the canvas. This
+means:
+
+- Source PNG resolution ≥ 1024 × 1024.
+- Actual design occupies the middle 675 × 675 area of that 1024 × 1024
+  canvas, with transparent margin around it.
+- If the current design fills edge-to-edge and the launcher upscales
+  it, **shrink the foreground artwork in a graphics editor first** —
+  do not rely on the mask to "just crop it".
+
+Quick test:
+
+- Open `assets/generated/app_icon_foreground.png` in an editor.
+- Draw a circle of diameter = 66 % of the canvas dimension.
+- Every important pixel (letters, character head, logo shape) must
+  fit inside that circle.
+
+**B. Background can be a solid colour OR an image, but must be full-bleed.**
+
+`adaptive_icon_background` should be either:
+
+- A solid-colour PNG (any hex will do) OR
+- A gradient PNG that fills the full 1024 × 1024 canvas edge-to-edge
+  with no transparent margin.
+
+Never leave transparent background — the launcher will pick a fallback
+that looks nothing like the design.
+
+**C. Kill the white flash on cold start.**
+
+In `android/app/src/main/res/values/styles.xml`, `LaunchTheme` must
+NOT draw a white / grey window while Flutter warms up. Two acceptable
+patterns:
+
+```xml
+<!-- Pattern 1 — solid brand colour (no icon, hides the app icon flash) -->
+<style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+    <item name="android:windowBackground">@color/launch_background</item>
+</style>
+```
+
+```xml
+<!-- Pattern 2 — full-bleed splash image, no white border -->
+<style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+    <item name="android:windowBackground">@drawable/launch_background</item>
+</style>
+```
+
+Where `@drawable/launch_background` is a `<layer-list>` with a solid
+`<color>` at the bottom and the branding centered on top — NOT the
+launcher icon.
+
+Regenerate icons after every change:
+
+```powershell
+dart run flutter_launcher_icons
+```
+
+Then wipe cached launcher art on the test device:
+
+```powershell
+adb shell pm clear com.google.android.apps.nexuslauncher
+# or the OEM equivalent — the icon cache survives reinstalls
+```
+
+---
+
+## 17. Push tap opens "ERR_CLEARTEXT_NOT_PERMITTED" / a browser error
+
+### Symptom
+
+Rare but embarrassing: a push notification carries a valid URL, user
+taps it, the app boots, WebView loads → shows an Android /
+Chrome error page ("net::ERR_CLEARTEXT_NOT_PERMITTED", "Connection
+is not private", or a system browser error).
+
+### Cause — most common on Android
+
+The push URL is `http://…` (not HTTPS), or the partner's OAuth
+redirect passes through an HTTP intermediary. Android P+
+`usesCleartextTraffic` defaults to `false` for API 28+, so any
+non-TLS load inside the WebView is refused with
+`ERR_CLEARTEXT_NOT_PERMITTED`.
+
+### Fix
+
+**Preferred:** demand HTTPS. Never accept an HTTP push URL from the
+manager — reply "please issue an https:// link". Cleartext traffic
+in a gray-flow shell is an audit risk anyway.
+
+**If cleartext must be allowed** (some managers still ship HTTP
+redirect fronts):
+
+1. Add a network security config that whitelists ONLY the domains
+   we actually load. Never blanket-allow.
+
+   `android/app/src/main/res/xml/network_security_config.xml`:
+
+   ```xml
+   <?xml version="1.0" encoding="utf-8"?>
+   <network-security-config>
+       <base-config cleartextTrafficPermitted="false" />
+       <domain-config cleartextTrafficPermitted="true">
+           <domain includeSubdomains="true">partner-domain.example</domain>
+       </domain-config>
+   </network-security-config>
+   ```
+
+2. Reference it from the manifest (already present in the template):
+
+   ```xml
+   <application
+       android:networkSecurityConfig="@xml/network_security_config"
+       ...>
+   ```
+
+**Secondary cause:** the URL scheme is `intent://` / `market://` and
+was accidentally loaded into the WebView instead of being handed off
+to the system. Verify `onNavigationRequest` catches every non-http(s)
+scheme (this template does — see `web_stage.dart`
+`onNavigationRequest`). If in doubt, add `LogCat` breadcrumbs on
+`onNavigationRequest` and reproduce with the exact push payload.
+
+**Verification path (before shipping):**
+
+- Send yourself a push with the real production URL from the Firebase
+  Console → Cloud Messaging → New Notification.
+- Tap it with the app killed AND with the app in background AND with
+  the app in foreground.
+- All three must open the URL in the in-app WebView, never a browser,
+  never an error page.
+
+---
+
+## 18. No-Wi-Fi screen: buttons oversized or misplaced
+
+### Symptom
+
+On the No-Wi-Fi screen, the Retry button appears:
+
+- Comically large (fills half the screen height in portrait), OR
+- Positioned dead-center where the artwork's illustration lives,
+  overlapping it, OR
+- Shrunk to almost nothing in landscape (SizedBox width smaller than
+  the label).
+
+### Cause
+
+Common bugs:
+
+1. `SizedBox(width: double.infinity, height: 54)` inside a `Column`
+   without a `Padding` → button spans the full parent width, which
+   in landscape is the full 1920 px.
+2. Absolute `Positioned(bottom: 40, left: 40, right: 40, ...)`
+   without orientation-aware overrides → the button that looks good
+   in portrait covers the artwork's fire icon in landscape.
+3. Missing `MediaQuery.of(context).size.width * 0.6` cap → button
+   width scales with screen instead of with content.
+
+### Fix
+
+Use two separate layouts gated on orientation, with fixed
+proportional constraints:
+
+```dart
+final Size size = MediaQuery.of(context).size;
+final bool landscape = MediaQuery.of(context).orientation == Orientation.landscape;
+
+Positioned(
+  left: 0,
+  right: 0,
+  bottom: landscape
+      ? size.height * 0.10
+      : size.height * 0.07,
+  child: Center(
+    child: SizedBox(
+      // Cap width so the button never goes full-bleed on tablets / landscape.
+      width: landscape
+          ? size.width * 0.35
+          : size.width * 0.72.clamp(220, 380),
+      height: 54,
+      child: PrimaryButton(label: 'Retry', onPressed: _retry),
+    ),
+  ),
+);
+```
+
+Verification — **must be in FINAL_CHECKLIST Part C**:
+
+- [ ] Portrait: Retry button width ≈ 70 % of screen width, height
+      54 dp, bottom margin ≈ 7 % of screen height.
+- [ ] Landscape: Retry button width ≈ 35 % of screen width, does NOT
+      cover the artwork's illustration.
+- [ ] Button label perfectly centered, no baseline drift (§13).
+- [ ] Same rules apply to the push-invite screen Accept / Skip
+      buttons.
+
+---
+
 ## TL;DR checklist before first release of a gray-part app
 
 - [ ] `file_picker` pinned to `8.1.4` (never `>=10.x`)
@@ -415,3 +938,14 @@ flutter build appbundle --release --obfuscate --split-debug-info=build/debug_inf
 - [ ] `FilePicker.platform.pickFiles(...)` everywhere (not the static call)
 - [ ] `pubspec.yaml` version AND `build.gradle.kts` versionCode/Name
       bumped together
+- [ ] Flutter 3.29+, AGP 8.5.2+, NDK 27+ (16 KB page-size support, §11)
+- [ ] Push-permission Skip button rendered as a real gradient button (§12)
+- [ ] All button labels use `height: 1.0` + explicit
+      `crossAxisAlignment.center` (§13)
+- [ ] Landscape safe-area handled for cutouts on BOTH long edges (§14)
+- [ ] `ic_notification.xml` is a flame vector, not the launcher icon (§15)
+- [ ] Adaptive icon foreground fits inside the 66 % safe zone; no white
+      window-background flash on cold start (§16)
+- [ ] Push URL is HTTPS-only, or cleartext whitelisted per domain (§17)
+- [ ] No-Wi-Fi + push-invite buttons capped in width, orientation-aware
+      positioning (§18)
