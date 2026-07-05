@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 // ============================================================
-// OBFUSCATOR — keystream string hider for Skyward Towers
+// OBFUSCATOR — keystream string hider
 // ============================================================
 // Sensitive strings (config endpoint, attribution key, messaging
 // id, user-agent fragments) live as encoded byte lists, never as
@@ -15,14 +15,42 @@ import 'dart:typed_data';
 //      The positional XOR makes identical plaintext bytes encode
 //      differently depending on their offset.
 //
-// The transform is symmetric, so the same routine encodes (in
+// The transform is symmetric — the same routine encodes (in
 // tool/secret_packer.dart) and decodes (here).
 //
-// To re-key the whole binary: change [_seedPhrase], then re-run
-// `dart run tool/secret_packer.dart` and paste the fresh arrays.
+// ─────────────────────────────────────────────────────────────
+// [FINGERPRINT] MANDATORY per-project change
+// ─────────────────────────────────────────────────────────────
+// EVERY new project MUST change BOTH:
+//
+//   a) `_seedPhrase`   — pick a fresh 8–20 char ASCII phrase, unique
+//                        to this project. No dictionary words that
+//                        match the project theme (do not use e.g.
+//                        `cloudpickers_seed` for a project named
+//                        Cloud Pickers — that link is trivially
+//                        greppable). Instead use a random opaque
+//                        token, e.g. `V7q!m2Zpn_` or a UUID slice.
+//
+//   b) `_streamLength` — vary between 16 and 48. Different from the
+//                        previous project's value. This changes the
+//                        cycle length of the keystream so byte-level
+//                        entropy analysis differs between projects.
+//
+// After changing EITHER value:
+//   1. Re-run `dart run tool/secret_packer.dart` (it uses the same
+//      seed + length from this file).
+//   2. Paste the fresh byte arrays into `lib/env/secure_strings.dart`.
+//   3. Old arrays will no longer decode correctly — do not leave
+//      stale ones behind.
+//
+// Do NOT copy a seed between projects even if you rename it. The
+// bytes at rest are identical and store scanners can cluster them.
 // ============================================================
 
-const String _seedPhrase = 'skyR1ver_t0wers';
+// [FINGERPRINT] Change to a fresh random ASCII phrase per project.
+const String _seedPhrase = 'CHANGE_ME_PER_PROJECT'; // [TODO]
+
+// [FINGERPRINT] Change to a different length (16–48) per project.
 const int _streamLength = 24;
 
 Uint8List _buildStream() {
@@ -49,6 +77,8 @@ Uint8List _buildStream() {
 final Uint8List _stream = _buildStream();
 
 /// Decodes an encoded byte list back into the original string.
+/// Returns "" for empty input — this is the safe path the template
+/// takes until real credentials are packed via tool/secret_packer.dart.
 String rev(List<int> packed) {
   if (packed.isEmpty) return '';
   final Uint8List out = Uint8List(packed.length);

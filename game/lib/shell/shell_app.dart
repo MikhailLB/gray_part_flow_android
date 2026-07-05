@@ -5,10 +5,16 @@ import '../bridge/link_watch.dart';
 import '../bridge/net_gate.dart';
 import '../bridge/push_hub.dart';
 import '../bridge/vault.dart';
+import '../env/facade.dart';
 import '../theme/app_theme.dart';
 import 'flow_router.dart';
 
 /// Root widget. Owns the long-lived bridges and hands them to the router.
+///
+/// The MaterialApp title is intentionally sourced from `TowerFacade.displayName`
+/// so it stays in sync with the store listing (and with the Android
+/// `android:label`). Do not hard-code a title here — every new project only
+/// changes `facade.dart` and this widget picks it up automatically.
 class ShellApp extends StatelessWidget {
   const ShellApp({
     super.key,
@@ -28,7 +34,7 @@ class ShellApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Skyward Towers',
+      title: TowerFacade.displayName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.build(),
       home: FlowRouter(

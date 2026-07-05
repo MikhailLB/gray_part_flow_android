@@ -1,7 +1,28 @@
+// ============================================================
+// AppAssets — centralized asset paths
+// ============================================================
+// Every asset path in the app must go through a constant here — never
+// hardcode `Image.asset('assets/…')` calls at the widget layer. This
+// makes the fingerprint rename below a one-file change.
+//
+// [FINGERPRINT] MANDATORY per-project change:
+//   1. Rename `_extra` to a fresh short folder name unique to this
+//      project. See .cursor/rules/custom_screens.md → [FINGERPRINT]
+//      block. Two projects sharing the same asset folder segment is
+//      an instant cross-submission tell for store scanners.
+//   2. Update `pubspec.yaml` `flutter.assets` to declare the new
+//      folder.
+//   3. Physically rename the folder on disk before running
+//      `flutter pub get`.
+//   4. `_gameplay` may also be renamed but it's less critical (game
+//      art is game-specific and the folder is usually unique already).
+// ============================================================
+
 /// Centralized asset paths so the rest of the app never hardcodes strings.
 class AppAssets {
   AppAssets._();
 
+  // [FINGERPRINT] Rename per project — see header block above.
   static const String _gameplay = 'assets/gameplay_assets';
   static const String _extra = 'assets/SkywardTowers_additional_assets_webp';
 

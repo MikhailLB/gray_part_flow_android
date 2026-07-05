@@ -1,0 +1,34 @@
+---
+description: Gray-flow User-Agent must carry appid/appname (Zeus & Magma games only)
+globs: **/device_agent.dart,**/http_client.dart
+alwaysApply: false
+---
+
+# Gray-flow User-Agent identity suffix
+
+**Condition:** apply ONLY to games themed around **Zeus** or **Magma**.
+For any other game theme, do NOT add this suffix.
+
+When building the gray-flow HTTP/WebView User-Agent for a Zeus or Magma game,
+append the app identity after the standard browser UA, space-separated:
+
+```
+<browser UA> appid/<bundleId> appname/<AppName>
+```
+
+- `appid/` → the application id / bundle id (e.g. `com.super.game`)
+- `appname/` → a space-free app name token (e.g. `GameNaming`)
+
+Example (full):
+
+```
+Mozilla/5.0 (Linux; Android 15; SM-S931U Build/AP3A.240905.015.A2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.6834.163 Mobile Safari/537.36 appid/com.super.game appname/GameNaming
+```
+
+Rules:
+- The same augmented UA must be used by BOTH the HTTP client and the WebView
+  (`setUserAgent`), so traffic stays consistent.
+- `appname` must contain no spaces (use PascalCase).
+- Keep the suffix as the very last segment, after `Mobile Safari/537.36`.
+- Source the values from the central config (e.g. app settings / facade) —
+  never hardcode at the call site.

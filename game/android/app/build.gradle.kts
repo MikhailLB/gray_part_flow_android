@@ -1,15 +1,32 @@
 import java.util.Properties
 import java.io.FileInputStream
 
+// ============================================================
+// Android app module — gray-part-flow template
+// ============================================================
+// [TODO] Per new project change BOTH `namespace` and `applicationId`
+//         to your fresh package id. They must be identical to:
+//           • lib/env/facade.dart → packageId + marketId
+//           • android/app/google-services.json → package_name
+//           • android/app/src/main/kotlin/**/MainActivity.kt package
+//         See android_gray_guide.md §"Setup Checklist" Step 1.
+//
+// [FINGERPRINT] Do not reuse the previous project's applicationId or
+// its Kotlin source folder path. See the Kotlin package rename step
+// documented in the root `START_HERE.md`.
+// ============================================================
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    // The Flutter Gradle Plugin must be applied after the Android and
+    // Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Apply the Google Services plugin only once google-services.json is present.
-// This lets the project build before Firebase credentials are supplied.
+// Apply the Google Services plugin only once google-services.json is
+// present. This lets the template build before Firebase credentials
+// are supplied (config gate will just fall back to the native game).
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
 }
@@ -23,20 +40,29 @@ if (hasKeystore) {
 }
 
 android {
-    // Internal namespace (R class / source package). The published Application
-    // ID is set via applicationId below.
-    namespace = "com.skywardtowers.skyward_towers"
+    // Internal namespace (R class / source package). The published
+    // Application ID is set via `applicationId` below.
+    //
+    // [TODO] Replace with your project package. Must match the Kotlin
+    // source folder path under android/app/src/main/kotlin/.
+    namespace = "com.example.template"
+
+    // Per TZ §6 — targetSdk = 35, minSdk = 30, compileSdk stays at 36
+    // for plugin compatibility (see gray_part_pitfalls.md §2).
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // Required by flutter_local_notifications 18+ (java.time.*).
+        // See gray_part_pitfalls.md §5.
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
     defaultConfig {
-        applicationId = "com.riverstone.skywardtowers"
+        // [TODO] Replace with your project applicationId. See header.
+        applicationId = "com.example.template"
         minSdk = flutter.minSdkVersion
         targetSdk = 35
         versionCode = flutter.versionCode

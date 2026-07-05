@@ -1,4 +1,4 @@
-package com.skywardtowers.skyward_towers
+package com.example.template
 
 import android.app.Activity
 import android.content.Intent
@@ -6,10 +6,29 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
-// Dependency-free WebView file upload: the site's <input type="file"> triggers
-// the WebView's file selector, which hops to this native chooser over a
-// MethodChannel and returns the picked content:// URIs back to the WebView.
+// ============================================================
+// MainActivity — WebView file-upload bridge
+// ============================================================
+// Dependency-free WebView file upload: the site's <input type="file">
+// triggers the WebView's file selector, which hops here over a
+// MethodChannel and returns the picked content:// URIs back to the
+// WebView. No file_picker dependency (see gray_part_pitfalls.md §1).
+//
+// [FINGERPRINT] Per-project mandatory changes:
+//   1. Move this file: rename `com/example/template/` (both the folder
+//      path AND the `package` declaration above) to your project id.
+//      Must match `applicationId` / `namespace` in
+//      android/app/build.gradle.kts.
+//   2. Rename `channelName` to a project-unique string (e.g.
+//      "riverstone/upload", "cloudpickers/fs"). The literal appears
+//      in the compiled Dart binary too — WebStage._uploadChannel must
+//      be updated to the SAME string.
+//   3. Vary `pickRequest` request code across projects (any unused
+//      short-int is fine).
+// ============================================================
 class MainActivity : FlutterActivity() {
+    // [FINGERPRINT] Rename per project. Keep in sync with
+    // lib/veil/web_stage.dart → `MethodChannel('...upload...')`.
     private val channelName = "tower/upload"
     private val pickRequest = 0x7A11
     private var pendingResult: MethodChannel.Result? = null

@@ -148,10 +148,30 @@ class _WebStageState extends State<WebStage> with WidgetsBindingObserver {
     if (_web.platform is! AndroidWebViewController) return;
     final AndroidWebViewController a =
         _web.platform as AndroidWebViewController;
+
+    // Inline autoplay video (no full-screen takeover, no tap-to-start).
+    // TZ §"Inline autoplay video".
     a.setMediaPlaybackRequiresUserGesture(false);
-    // Wire the site's <input type="file"> to the system chooser. No upload
-    // package: the picked content:// URIs come back over a MethodChannel.
+
+    // Auto-grant Protected Media ID (DRM) / MIDI-sysex requests so
+    // partner video streams (Widevine, EME) play without a modal
+    // permission prompt. Camera / microphone requests are also granted
+    // — the partner sites we host use them only when a user explicitly
+    // opts into a form field, so echoing the browser default is safe.
+    // TZ §"Protected content".
+    a.setOnPlatformPermissionRequest(
+      (PlatformWebViewPermissionRequest req) => req.grant(),
+    );
+
+    // Wire the site's <input type="file"> to the native chooser. No
+    // file_picker dependency — the picked content:// URIs come back
+    // over the MethodChannel bound in MainActivity.kt.
+    // TZ §"File upload".
     a.setOnShowFileSelector(_pickFiles);
+
+    // Third-party cookies are required for OAuth / payment provider
+    // sessions to survive the redirect back to the partner domain.
+    // TZ §"Cookies" + §"Sessions".
     final AndroidWebViewCookieManager cookies = AndroidWebViewCookieManager(
       AndroidWebViewCookieManagerCreationParams
           .fromPlatformWebViewCookieManagerCreationParams(

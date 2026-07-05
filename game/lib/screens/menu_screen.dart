@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_assets.dart';
+import '../env/facade.dart';
 import '../state/progress_store.dart';
 import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
@@ -17,8 +18,10 @@ class MenuScreen extends StatefulWidget {
 }
 
 class _MenuScreenState extends State<MenuScreen> {
-  static const String privacyUrl = 'https://skywardtowerrs.com/privacy-policy.html';
-  static const String supportUrl = 'https://skywardtowerrs.com/support.html';
+  // Sourced from TowerFacade so a single edit in lib/env/legal_links.dart
+  // propagates here and into any other UI surface that displays them.
+  static final String privacyUrl = TowerFacade.privacyUrl;
+  static final String supportUrl = TowerFacade.helpUrl;
 
   void _openLevels() {
     Navigator.of(context)

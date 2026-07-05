@@ -43,3 +43,15 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# ── Gray-flow secrets — NEVER commit real values ──
+# The `.example` sibling of google-services.json stays in git; the real
+# credentials file must not.
+android/app/google-services.json
+android/key.properties
+*.jks
+*.keystore
+
+# Symbol table produced by --split-debug-info.
+build/debug_info/
+

@@ -1,0 +1,45 @@
+{
+  "_comment": [
+    "TEMPLATE STUB — DO NOT SHIP THIS FILE.",
+    "",
+    "To activate Firebase (required for push notifications + App Check):",
+    "  1. Open Firebase Console → Add project (unique per app).",
+    "  2. Register an Android app with the packageId from",
+    "     lib/env/facade.dart → TowerFacade.packageId. It MUST match",
+    "     android/app/build.gradle.kts applicationId exactly.",
+    "  3. Download the generated google-services.json.",
+    "  4. Save it at android/app/google-services.json (NEXT TO THIS FILE).",
+    "  5. Ensure the file is gitignored — never commit real credentials.",
+    "  6. Ask the manager to grant Owner role to",
+    "     marla-export@marfa-290610.iam.gserviceaccount.com in the",
+    "     GCP project (needed by the push-sending service).",
+    "",
+    "Until google-services.json is present, the Google Services Gradle",
+    "plugin is skipped (see android/app/build.gradle.kts) and Firebase",
+    "silently fails to initialize — the app degrades to native-game",
+    "mode. This is intentional so the template compiles out of the box."
+  ],
+  "project_info": {
+    "project_number": "000000000000",
+    "project_id": "REPLACE_ME",
+    "storage_bucket": "REPLACE_ME.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "android_client_info": {
+          "package_name": "com.example.template"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        { "current_key": "REPLACE_ME" }
+      ],
+      "services": {
+        "appinvite_service": { "other_platform_oauth_client": [] }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

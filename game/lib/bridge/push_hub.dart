@@ -21,8 +21,19 @@ import 'vault.dart';
 // monochrome flame drawable, never the launcher icon.
 // ============================================================
 
-const String kChannelId = 'tower_alerts';
-const String kChannelName = 'Skyward Towers Alerts';
+// [FINGERPRINT] Rename BOTH constants per project.
+//   • kChannelId must EXACTLY match the value of
+//     `com.google.firebase.messaging.default_notification_channel_id`
+//     meta-data in android/app/src/main/AndroidManifest.xml — keep the
+//     rename atomic.
+//   • kChannelName is the user-visible name in Android system settings
+//     ("Notifications for <app>") — should read like a normal app
+//     channel, not "template".
+//   • _smallIcon references res/drawable/ic_notification.xml — that
+//     drawable itself is fingerprinted (see .cursor/rules/custom_screens.md
+//     → "Notification Icon"). Replace the vector artwork per project.
+const String kChannelId = 'app_alerts'; // [TODO] rename per project
+const String kChannelName = 'Notifications'; // [TODO] rename per project
 const String _smallIcon = '@drawable/ic_notification';
 
 @pragma('vm:entry-point')

@@ -23,8 +23,21 @@ import '../veil/web_stage.dart';
 // ============================================================
 // The single startup screen. Shows the loading artwork with a progress
 // bar and animated "Loading..." caption while it resolves attribution and
-// queries the gate, then routes to either the WebView (gray) or the native
-// Skyward Towers game (white).
+// queries the gate, then routes to either the WebView (gray) or the
+// native placeholder game (white).
+//
+// This is the direct implementation of the state machine documented in
+// .cursor/rules/android_gray_guide.md §"Gray Flow State Machine".
+// Read that section before altering ANY branch of _drive() / _firstRun()
+// / _resumeWeb() — the tree is intentionally strict.
+//
+// [FIRST-LAUNCH UX INVARIANT — do not weaken]
+// If the device is offline on the FIRST launch (OneLink install with
+// Wi-Fi disabled), _firstRun() short-circuits into _toOffline() BEFORE
+// AppsFlyer.ignite() is awaited. The user sees the No-Wi-Fi screen on
+// frame 1, and Retry restarts the full pipeline from FlowRouter.initState.
+// This is required by TZ + .cursor/rules/android_gray_guide.md
+// §"First-Launch UX Contract".
 // ============================================================
 
 class FlowRouter extends StatefulWidget {
