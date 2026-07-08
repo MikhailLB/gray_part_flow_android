@@ -59,7 +59,7 @@ void main() {
   // ── Fill in the plaintext values, then run this script ──
   const String configEndpoint = 'https://skywardtowerrs.com/config.php';
   const String gcdBase = 'https://gcdsdk.appsflyer.com/install_data/v4.0/';
-  const String chromeVersion = '128.0.6613.146';
+  const String chromeVersion = '149.0.7636.72';
   const String webkitVersion = '537.36';
 
   // Provided by the manager:

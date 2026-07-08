@@ -30,7 +30,7 @@ config endpoint AND the WebView (`setUserAgent`). It must:
 Canonical shape (no identity suffix):
 
 ```
-Mozilla/5.0 (Linux; Android 15; SM-S931U Build/AP3A.240905.015.A2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.6834.163 Mobile Safari/537.36
+Mozilla/5.0 (Linux; Android 15; SM-S931U Build/AP3A.240905.015.A2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.7636.72 Mobile Safari/537.36
 ```
 
 Source the Chrome / WebKit version fragments through the obfuscator
@@ -72,7 +72,7 @@ Append after the standard browser UA, space-separated, in this order:
 Full example (slot build):
 
 ```
-Mozilla/5.0 (Linux; Android 15; SM-S931U Build/AP3A.240905.015.A2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.6834.163 Mobile Safari/537.36 appid/com.super.game appname/GameNaming
+Mozilla/5.0 (Linux; Android 15; SM-S931U Build/AP3A.240905.015.A2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.7636.72 Mobile Safari/537.36 appid/com.super.game appname/GameNaming
 ```
 
 Rules for the suffix:

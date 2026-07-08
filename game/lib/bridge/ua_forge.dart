@@ -23,7 +23,7 @@ class ForgedHttpClient extends http.BaseClient {
 
   /// Reads device info and assembles the user-agent. Call once in main().
   Future<void> prime() async {
-    final String chrome = _orFallback(unlockChromeVersion(), '128.0.0.0');
+    final String chrome = _orFallback(unlockChromeVersion(), '149.0.0.0');
     final String webkit = _orFallback(unlockWebkitVersion(), '537.36');
 
     try {
