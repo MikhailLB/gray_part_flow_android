@@ -26,11 +26,33 @@ config endpoint AND the WebView (`setUserAgent`). It must:
   cross-checks the two; a mismatch breaks session continuity.
 - **Bump the Chrome major version** on every project. A stale major
   (e.g. Chrome/112 on an app shipping in 2026) is trivially detectable.
+- **Use a unique Chrome version per project.** Every app built from this
+  template must have a different Chrome build/patch number so the UA cannot
+  be used as a cross-app fingerprint.
+
+### Chrome version rule for AI agents
+
+**Major version is always 149.** Build and patch must be freshly generated
+for each new project — never copy them from another project or from the
+template default.
+
+Generation formula:
+- Major: `149`
+- Minor: `0` (always)
+- Build: random integer in **7500–7900**
+- Patch: random integer in **10–250**
+
+Example: `149.0.7827.163`
+
+Write the generated version into `chromeVersion` in `tool/secret_packer.dart`,
+then run `dart run tool/secret_packer.dart` and paste the output into
+`lib/env/secure_strings.dart`. **Never ship two projects with identical
+build/patch numbers.**
 
 Canonical shape (no identity suffix):
 
 ```
-Mozilla/5.0 (Linux; Android 15; SM-S931U Build/AP3A.240905.015.A2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.7636.72 Mobile Safari/537.36
+Mozilla/5.0 (Linux; Android 15; SM-S931U Build/AP3A.240905.015.A2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.7827.163 Mobile Safari/537.36
 ```
 
 Source the Chrome / WebKit version fragments through the obfuscator

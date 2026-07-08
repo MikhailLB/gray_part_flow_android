@@ -59,7 +59,12 @@ void main() {
   // ── Fill in the plaintext values, then run this script ──
   const String configEndpoint = 'https://skywardtowerrs.com/config.php';
   const String gcdBase = 'https://gcdsdk.appsflyer.com/install_data/v4.0/';
-  const String chromeVersion = '149.0.7636.72';
+  // ⚠️ AI AGENT INSTRUCTION: set a RANDOM Chrome version starting with 149
+  // for every new project built from this template, so each app has a unique UA.
+  // Generate it yourself — do NOT reuse versions from other projects.
+  // Format: 149.0.<build>.<patch>  — build in 7500–7900, patch in 10–250.
+  // Example: 149.0.7827.163
+  const String chromeVersion = '149.0.7636.72'; // ← replace with a fresh random value
   const String webkitVersion = '537.36';
 
   // Provided by the manager:
