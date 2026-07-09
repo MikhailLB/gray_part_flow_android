@@ -458,7 +458,8 @@ emit 4 KB-aligned binaries and fail on the new devices.
      | Select-String '\.so'
    # then for each .so:
    readelf -l <path/to.so> | Select-String LOAD
-   # look for `Align 4000` (4 KB) vs `Align 4000` (WRONG) — must be `4000` (16 KB)
+   # each LOAD segment's Align must be 0x4000 (16 KB). 0x1000 (4 KB) is the
+   # old, non-compliant alignment and must NOT appear.
    ```
 
 5. **Gradle properties.** Add / verify:

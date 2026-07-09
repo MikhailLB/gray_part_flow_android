@@ -759,54 +759,21 @@ real work — a static logo is not enough. Two elements are mandatory:
 
 Both must adapt to portrait and landscape.
 
-### Portrait layout
+### Portrait layout (bottom-anchored stack)
 
-```
-┌─────────────────────────────┐
-│                             │
-│                             │
-│                             │
-│      ┌──────────────┐       │  ← optional logo / hero art
-│      │              │       │     centered horizontally
-│      │     LOGO     │       │     vertically at ~35 % of screen height
-│      │              │       │     may be static image or looping video
-│      └──────────────┘       │
-│                             │
-│                             │
-│         Loading . . .       │  ← animated caption
-│                             │     centered horizontally
-│                             │     bottom offset: size.height * 0.22
-│                             │     text 18 sp, semi-bold, white,
-│                             │     letterSpacing 1.5, opacity 0.9
-│                             │
-│  ┌───────────────────────┐  │  ← loading bar
-│  │███████░░░░░░░░░░░░░░░│  │     width: size.width - 2 * 32dp
-│  └───────────────────────┘  │     height: 6dp, radius 3dp
-│                             │     bottom offset: size.height * 0.14
-│                             │     track: white 15 % opacity
-│                             │     fill: gold gradient (#FFCC00 → #FF9900)
-│                             │     optional soft glow shadow
-└─────────────────────────────┘
-```
+- Logo / hero art — centered, ~35 % from top; static image or looping video.
+- "Loading . . ." caption — centered, bottom offset ≈ `size.height * 0.22`;
+  18 sp semi-bold white, letterSpacing 1.5, opacity 0.9.
+- Loading bar — width `size.width - 2*32dp`, height 6 dp, radius 3 dp, bottom
+  offset ≈ `size.height * 0.14`; track white 15 %, fill gold gradient
+  (#FFCC00 → #FF9900), optional soft glow.
 
 ### Landscape layout
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                                                         │
-│                 ┌──────────────┐                        │
-│                 │     LOGO     │  ← logo shrinks to     │
-│                 └──────────────┘    size.height * 0.35  │
-│                                                         │
-│                    Loading . . .                        │  ← bottom offset:
-│                                                         │     size.height * 0.20
-│         ┌─────────────────────────────────┐             │  ← loading bar
-│         │████████░░░░░░░░░░░░░░░░░░░░░░░░│             │     width: size.width * 0.60
-│         └─────────────────────────────────┘             │     centered
-│                                                         │     bottom offset:
-│                                                         │     size.height * 0.10
-└─────────────────────────────────────────────────────────┘
-```
+- Logo — shrinks to ≈ `size.height * 0.35`, centered.
+- "Loading . . ." caption — centered, bottom offset ≈ `size.height * 0.20`.
+- Loading bar — width ≈ `size.width * 0.60`, centered, bottom offset ≈
+  `size.height * 0.10`.
 
 ### "Loading . . ." caption animation
 
@@ -878,26 +845,8 @@ Never tie the bar to `WebView.onPageFinished` — that page belongs to
 
 ### Portrait layout
 
-```
-┌─────────────────────────────┐  ← full screen, no AppBar, no system bars
-│                             │
-│  ┌───────────────────────┐  │
-│  │                       │  │  ← video background (full screen, BoxFit.cover)
-│  │   nf_screen.mp4       │  │     assets/nf_screen.mp4 (portrait)
-│  │   looping, muted      │  │     assets/nf_screen_horizontal.mp4 (landscape)
-│  │                       │  │
-│  │                       │  │
-│  │                       │  │
-│  │                       │  │
-│  │   ┌───────────────┐   │  │  ← ACCEPT button
-│  │   │    Accept     │   │  │     left: size.width * 0.08
-│  │   └───────────────┘   │  │     right: size.width * 0.08
-│  │                       │  │     bottom: size.height * 0.07
-│  │       Skip            │  │  ← SKIP text link
-│  └───────────────────────┘  │     below Accept, gap 18dp
-│                             │     opacity 0.85 (subdued)
-└─────────────────────────────┘
-```
+Full-screen, no AppBar / system bars. Looping muted video background
+(`BoxFit.cover`); Accept button + a subdued Skip link stacked at the bottom.
 
 Key measurements (current implementation):
 - Accept button: `left/right = size.width * 0.08`, `bottom = size.height * 0.07`
@@ -907,18 +856,7 @@ Key measurements (current implementation):
 
 ### Landscape layout
 
-```
-┌─────────────────────────────────────────────┐
-│  ┌─────────────────────────────────────────┐ │
-│  │         nf_screen_horizontal.mp4        │ │  ← full-screen video
-│  │                                         │ │
-│  │         ┌──────────────────┐            │ │  ← ACCEPT button
-│  │         │      Accept      │            │ │     width: size.width * 0.32
-│  │         └──────────────────┘            │ │     bottom: size.height * 0.06
-│  │                 Skip                    │ │  ← SKIP link, 8dp below
-│  └─────────────────────────────────────────┘ │
-└─────────────────────────────────────────────┘
-```
+Same full-screen video; Accept + Skip centered at the bottom (narrower).
 
 Key measurements (current implementation):
 - Both buttons centered horizontally (left: 0, right: 0)
@@ -938,29 +876,9 @@ Key measurements (current implementation):
 
 ### Portrait layout
 
-```
-┌─────────────────────────────┐
-│                             │
-│    SafeArea padding top     │
-│                             │
-│          ┌───┐              │
-│          │ 📶│              │  ← wifi_off_rounded icon, 52dp, amber
-│          └───┘              │     Container 100×100, circle, amber border
-│      (pulsing animation)    │     AnimationController 0.85→1.0, 1800ms
-│                             │
-│   No Internet Connection    │  ← Text, 22sp, bold, white, centered
-│                             │     gap 32dp above
-│  Check your connection and  │  ← Text, 15sp, white 50% opacity
-│       tap Retry             │     gap 12dp below title
-│                             │
-│  ┌───────────────────────┐  │  ← RETRY button
-│  │        Retry          │  │     SizedBox(width: infinity, height: 54)
-│  └───────────────────────┘  │     gap 48dp below subtitle
-│                             │     gradient: #FFCC00 → #FF9900, radius 16
-│                             │     amber glow shadow
-│    SafeArea padding bottom  │
-└─────────────────────────────┘
-```
+`SafeArea` + centered `Column`: pulsing amber `wifi_off_rounded` icon (52 dp
+in a 100×100 circle), "No Internet Connection" title (22 sp bold white), a
+subtitle (15 sp, white 50 %), then a full-width Retry button.
 
 Key measurements:
 - Horizontal padding: 36dp

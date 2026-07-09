@@ -1,6 +1,7 @@
 ---
 description: Safe-area CSS injection must never touch the partner site's own horizontal padding — otherwise responsive layouts collapse and buttons hit the WebView edge.
-alwaysApply: true
+globs: **/web_stage.dart,**/web_veil.dart,**/content_screen.dart
+alwaysApply: false
 ---
 
 # WebView safe-area CSS injection — do not squash the partner site

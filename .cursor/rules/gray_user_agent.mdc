@@ -1,7 +1,7 @@
 ---
 description: Gray-flow User-Agent — device authenticity + slot-vs-crash identity suffix
 globs: **/ua_forge.dart,**/device_agent.dart,**/http_client.dart,**/web_stage.dart,**/content_screen.dart
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Gray-flow User-Agent contract
