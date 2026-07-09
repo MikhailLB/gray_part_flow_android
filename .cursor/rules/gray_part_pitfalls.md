@@ -808,35 +808,39 @@ non-TLS load inside the WebView is refused with
 
 ### Fix
 
-**Preferred:** demand HTTPS. Never accept an HTTP push URL from the
-manager — reply "please issue an https:// link". Cleartext traffic
-in a gray-flow shell is an audit risk anyway.
+**ALWAYS ship `cleartextTrafficPermitted="true"` in every gray-flow
+app.** Do NOT start from a "false" base-config and try to whitelist
+individual domains. Here is why:
 
-**If cleartext must be allowed** (some managers still ship HTTP
-redirect fronts):
+- Partners routinely send push URLs over HTTP (`http://afsub.com/push/`,
+  `http://track.partner.com/…`, etc.). There is no way to know all
+  domains in advance, and the list grows silently.
+- The goal of the gray flow is to behave like Chrome. Chrome on
+  Android **does not block cleartext by default** — only the app's
+  own `network_security_config.xml` adds that restriction.
+- A "false" base-config that happens to work today silently breaks the
+  next time the manager changes their push sub-domain.
 
-1. Add a network security config that whitelists ONLY the domains
-   we actually load. Never blanket-allow.
+`android/app/src/main/res/xml/network_security_config.xml`:
 
-   `android/app/src/main/res/xml/network_security_config.xml`:
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+</network-security-config>
+```
 
-   ```xml
-   <?xml version="1.0" encoding="utf-8"?>
-   <network-security-config>
-       <base-config cleartextTrafficPermitted="false" />
-       <domain-config cleartextTrafficPermitted="true">
-           <domain includeSubdomains="true">partner-domain.example</domain>
-       </domain-config>
-   </network-security-config>
-   ```
+Reference it from the manifest (already present in the template):
 
-2. Reference it from the manifest (already present in the template):
-
-   ```xml
-   <application
-       android:networkSecurityConfig="@xml/network_security_config"
-       ...>
-   ```
+```xml
+<application
+    android:networkSecurityConfig="@xml/network_security_config"
+    ...>
+```
 
 **Secondary cause:** the URL scheme is `intent://` / `market://` and
 was accidentally loaded into the WebView instead of being handed off
@@ -947,6 +951,6 @@ Verification — **must be in FINAL_CHECKLIST Part C**:
 - [ ] `ic_notification.xml` is a flame vector, not the launcher icon (§15)
 - [ ] Adaptive icon foreground fits inside the 66 % safe zone; no white
       window-background flash on cold start (§16)
-- [ ] Push URL is HTTPS-only, or cleartext whitelisted per domain (§17)
+- [ ] `network_security_config.xml` has `cleartextTrafficPermitted="true"` on `base-config` — partners always ship HTTP push URLs (§17)
 - [ ] No-Wi-Fi + push-invite buttons capped in width, orientation-aware
       positioning (§18)

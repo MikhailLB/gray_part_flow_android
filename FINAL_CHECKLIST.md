@@ -265,7 +265,10 @@ Test this on a fresh device. Uninstall any prior build first.
 - [ ] Notification shows an image (BigPictureStyleInformation)
 - [ ] Cold-start tap → app boots and opens the push URL in the
       in-app WebView (not a browser, not an error page)
-- [ ] `network_security_config.xml` base-config has `cleartextTrafficPermitted="true"` — partners routinely send HTTP push URLs and tracking redirects (afsub.com, etc.); a "false" base breaks every cold-start tap silently
+- [ ] Push URL is **HTTPS**. If HTTP was received, escalate to the
+      manager. If cleartext must be permitted for that partner,
+      whitelist their domain in `network_security_config.xml`
+      (per-domain only, never blanket)
 - [ ] Warm tap → live URL loaded, NOT persisted as `savedUrl`
 - [ ] On the next launch after a cold-start push, the standard
       config URL is used (push URL is one-time)
