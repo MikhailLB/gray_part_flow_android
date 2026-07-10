@@ -179,7 +179,7 @@ tool/
 └── encode_keys.dart            Run to encode secrets → byte arrays
 
 android/app/
-├── build.gradle.kts            applicationId, minSdk=30, targetSdk=35
+├── build.gradle.kts            applicationId, minSdk=26 (Android 8.0), targetSdk=35
 ├── google-services.json        ★ Firebase config (not in git)
 └── src/main/
     ├── AndroidManifest.xml     ★ OneLink host, FCM channel, INTERNET permission
@@ -1117,28 +1117,39 @@ flutter build apk --release --obfuscate --split-debug-info=build/debug_info
 
 ## Library Versions Reference
 
+Recommended pins as of the current template revision (2026). These are
+the versions the template is actively tested against — see
+`gray_part_pitfalls.md` §19 for the absolute minimum floors and the
+reasoning behind each attribution-SDK pin.
+
 ```yaml
 dependencies:
-  appsflyer_sdk: ^6.15.3
-  firebase_core: ^3.13.0
-  firebase_messaging: ^15.2.4
-  firebase_app_check: ^0.3.2+10
-  flutter_local_notifications: ^18.0.1
-  connectivity_plus: ^6.1.4
-  http: ^1.3.0
-  device_info_plus: ^11.3.3
-  flutter_secure_storage: ^10.0.0
-  shared_preferences: ^2.5.3
-  webview_flutter: ^4.13.1
-  webview_flutter_android: ^4.11.0
-  video_player: ^2.9.3
-  url_launcher: ^6.3.1
-  file_picker: ^11.0.2
-  package_info_plus: ^8.3.0
+  # ── Attribution & push stack — do NOT downgrade (see pitfalls §19)
+  appsflyer_sdk: ^6.18.0            # min 6.16.0
+  firebase_core: ^4.11.0            # min 3.13.0
+  firebase_messaging: ^16.4.0       # min 15.2.0
+  firebase_app_check: ^0.4.5        # min 0.3.2+10
+  flutter_local_notifications: ^22.0.1  # min 18.0.0
+  flutter_secure_storage: ^10.3.1   # min 10.0.0
+
+  # ── Rest of the stack — stagger minor versions per project
+  connectivity_plus: ^7.1.1
+  http: ^1.6.0
+  device_info_plus: 11.4.0
+  shared_preferences: ^2.5.5
+  webview_flutter: ^4.14.0
+  webview_flutter_android: ^4.13.0
+  url_launcher: ^6.3.2
+  # video_player / file_picker / package_info_plus — add only if used
+  # (file_picker MUST stay <= 8.x — see pitfalls §1)
 ```
 
-**Per-project diversification:** Stagger minor versions between projects.
-Check pub.dev for latest compatible versions at project start.
+**Per-project diversification:** Stagger minor versions between projects
+by bumping WITHIN or ABOVE the recommended pins — never below. Check
+pub.dev for the latest compatible releases at project start and prefer
+the newer one. Downgrading Firebase or AppsFlyer to "match some other
+example" is the single most common cause of Organic-vs-Non-Organic
+misclassification on this template (§pitfalls §19).
 
 ---
 

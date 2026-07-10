@@ -446,8 +446,8 @@ emit 4 KB-aligned binaries and fail on the new devices.
    used by this template are all fine:
 
    - `webview_flutter_android` (uses system WebView, no `.so`)
-   - `appsflyer_sdk >= 6.16.0`
-   - `firebase_messaging >= 15.2.0`
+   - `appsflyer_sdk >= 6.16.0`  (recommend `^6.18.0` — see §"Attribution SDK floors" below)
+   - `firebase_messaging >= 15.2.0`  (recommend `^16.4.0` — see §"Attribution SDK floors" below)
    - `flutter_secure_storage >= 10.0.0`
    - `flutter_local_notifications >= 18.0.0`
 
@@ -925,13 +925,70 @@ Verification — **must be in FINAL_CHECKLIST Part C**:
 
 ---
 
+## 19. Attribution SDK floors — do NOT downgrade Firebase / AppsFlyer
+
+### Symptom (when someone downgrades)
+
+- Installs sporadically classified as `Organic` even with a valid OneLink /
+  campaign link → users land in the game instead of the WebView.
+- `onInstallConversionData` fires late (10–20 s) or times out; the config
+  request goes out without attribution and the backend routes to the
+  default (safe → native game) branch.
+- FCM token retrieval hangs on cold start; `push_token` and
+  `firebase_project_id` are missing from the config request body → server
+  cannot send targeted push, downgrades user to lower-tier attribution.
+- Random ANRs on the first 2–3 seconds after launch on Android 8–10
+  devices (old AppsFlyer initialisers do blocking I/O on the main thread).
+
+### Cause
+
+Old Firebase / AppsFlyer SDKs pre-date the 16 KB page-size requirement
+(§11) AND ship the buggy first-run attribution timing. Recent releases
+fixed both. Downgrading to save 200 KB of APK size, or "because the
+example in the docs uses an older version", regresses the app to the
+laggy, mis-classifying behaviour that the recent releases specifically
+patch.
+
+### Rule for AI agents scaffolding a new project
+
+Use these floors for the attribution stack. **Never pin BELOW them.**
+Prefer the "recommended" pin (or newer) unless a manager explicitly
+requests otherwise:
+
+| Plugin | Absolute minimum | Recommended pin | Why the floor |
+|---|---|---|---|
+| `appsflyer_sdk` | `^6.16.0` | `^6.18.0` | 16 KB alignment + Organic false-positive fix |
+| `firebase_core` | `^3.13.0` | `^4.11.0` | Android SDK 34+ AppCheck contract |
+| `firebase_messaging` | `^15.2.0` | `^16.4.0` | 16 KB alignment + `getToken()` reliability |
+| `firebase_app_check` | `^0.3.2+10` | `^0.4.5` | Play Integrity provider stability on API 26+ |
+| `flutter_local_notifications` | `^18.0.0` | `^22.0.1` | Core-lib desugaring (§5) + notification-channel APIs |
+| `flutter_secure_storage` | `^10.0.0` | `^10.3.1` | 16 KB alignment |
+
+Diversification between projects is allowed and encouraged — but ONLY
+by bumping WITHIN or ABOVE these floors (e.g. `^6.18.0` in project A,
+`^6.19.2` in project B). Do not diversify DOWNWARD.
+
+### Fix (when you inherit a lagged project)
+
+1. Open `pubspec.yaml`, replace each plugin pin with the recommended pin
+   from the table above.
+2. `flutter clean && flutter pub get`.
+3. Rebuild release APK and re-run the non-organic install test
+   (`android_gray_guide.md` §"Testing Guide" → non-organic).
+4. Verify in debug logs that `[AppsFlyerService] onInstallConversionData`
+   fires within ~3 s of first launch, with correct `af_status` values,
+   and that `push_token` is present in the outgoing config request body.
+
+---
+
 ## TL;DR checklist before first release of a gray-part app
 
 - [ ] `file_picker` pinned to `8.1.4` (never `>=10.x`)
 - [ ] Root `android/build.gradle.kts` overrides `compileSdk = 36` for all
       library subprojects, registered **before** `evaluationDependsOn`
-- [ ] `compileSdk = 36`, `targetSdk = 35`, `minSdk = 30` in app
-      `build.gradle.kts`
+- [ ] `compileSdk = 36`, `targetSdk = 35`, `minSdk = 26` (Android 8.0) in app
+      `build.gradle.kts` — this is the LOWEST floor the current
+      Firebase/AppsFlyer stack supports; do not raise it without cause
 - [ ] `isCoreLibraryDesugaringEnabled = true` + `desugar_jdk_libs:2.1.4`
 - [ ] `kotlin.incremental=false` in `gradle.properties`
 - [ ] `NetSensor.isOnline()` whitelist includes `ConnectivityResult.vpn`

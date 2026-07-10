@@ -47,8 +47,14 @@ android {
     // source folder path under android/app/src/main/kotlin/.
     namespace = "com.example.template"
 
-    // Per TZ §6 — targetSdk = 35, minSdk = 30, compileSdk stays at 36
-    // for plugin compatibility (see gray_part_pitfalls.md §2).
+    // Per TZ §6 — targetSdk = 35, minSdk = 26 (Android 8.0), compileSdk stays
+    // at 36 for plugin compatibility (see gray_part_pitfalls.md §2).
+    //
+    // ⚠️ AI AGENT: keep minSdk at the LOWEST value that the current Firebase +
+    // AppsFlyer + flutter_local_notifications stack still supports. As of the
+    // versions pinned in pubspec.yaml that floor is API 26 (Android 8.0).
+    // Do NOT raise minSdk higher unless a dependency literally refuses to build
+    // — every extra API level slices off eligible users from the campaign.
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
@@ -63,7 +69,9 @@ android {
     defaultConfig {
         // [TODO] Replace with your project applicationId. See header.
         applicationId = "com.example.template"
-        minSdk = flutter.minSdkVersion
+        // Android 8.0 (Oreo) — lowest API supported by the current
+        // Firebase/AppsFlyer stack. See compileSdk comment above.
+        minSdk = 26
         targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName

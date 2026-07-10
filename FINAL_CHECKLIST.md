@@ -117,9 +117,12 @@ Test this on a fresh device. Uninstall any prior build first.
 
 ### 6. API levels
 - [ ] `android/app/build.gradle.kts` targetSdk = **35**, compileSdk =
-      **36**, minSdk = **30**
+      **36**, minSdk = **26** (Android 8.0 — lowest floor the current
+      Firebase/AppsFlyer stack supports, see `gray_part_pitfalls.md` §19)
 - [ ] Builds without `flutter_plugin_android_lifecycle` compileSdk
       complaints (see `gray_part_pitfalls.md` §2)
+- [ ] Attribution stack pinned at or above the recommended versions in
+      `gray_part_pitfalls.md` §19 — no downgraded Firebase / AppsFlyer
 
 ### 7. Adaptive icon (see gray_part_pitfalls.md §16)
 - [ ] Launcher icon fills the mask on Pixel Launcher preview — no
