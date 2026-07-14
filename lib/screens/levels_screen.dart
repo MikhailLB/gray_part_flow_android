@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_assets.dart';
+import '../bridge/insight.dart';
 import '../game/models/level_config.dart';
 import '../state/progress_store.dart';
 import '../theme/app_theme.dart';
@@ -17,6 +18,12 @@ class LevelsScreen extends StatefulWidget {
 }
 
 class _LevelsScreenState extends State<LevelsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Insight.screen('levels');
+  }
+
   Future<void> _openLevel(LevelConfig config) async {
     await Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => GameScreen(config: config, store: widget.store),

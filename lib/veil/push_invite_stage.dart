@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_assets.dart';
+import '../bridge/insight.dart';
 import '../bridge/link_watch.dart';
 import '../bridge/push_hub.dart';
 import '../bridge/vault.dart';
@@ -12,7 +13,7 @@ import 'web_stage.dart';
 /// project's notification artwork (orientation-aware). Accept triggers the
 /// OS permission dialog; Skip arms a cooldown. Either way the user then
 /// continues to the content.
-class PushInviteStage extends StatelessWidget {
+class PushInviteStage extends StatefulWidget {
   const PushInviteStage({
     super.key,
     required this.vault,
@@ -26,31 +27,49 @@ class PushInviteStage extends StatelessWidget {
   final LinkWatch linkWatch;
   final String contentLink;
 
-  Future<void> _accept(BuildContext context) async {
-    final bool granted = await pushHub.askPermission();
-    if (!granted) {
-      await vault.writeInviteCooldown(_cooldownTarget());
-    }
-    if (context.mounted) _forward(context);
+  @override
+  State<PushInviteStage> createState() => _PushInviteStageState();
+}
+
+class _PushInviteStageState extends State<PushInviteStage> {
+  @override
+  void initState() {
+    super.initState();
+    Insight.screen('push_invite');
   }
 
-  Future<void> _skip(BuildContext context) async {
-    await vault.writeInviteCooldown(_cooldownTarget());
-    if (context.mounted) _forward(context);
+  Future<void> _accept() async {
+    Insight.event('push_invite_accept');
+    // Use the REAL result of the OS dialog. Do not read the vault back —
+    // the vault may lag by a frame and the tag would be wrong.
+    final bool granted = await widget.pushHub.askPermission();
+    Insight.tag('notif_permission', granted ? 'granted' : 'denied');
+    Insight.event(granted ? 'push_granted' : 'push_denied');
+    if (!granted) {
+      await widget.vault.writeInviteCooldown(_cooldownTarget());
+    }
+    if (mounted) _forward();
+  }
+
+  Future<void> _skip() async {
+    Insight.event('push_invite_skip');
+    Insight.tag('notif_permission', 'skipped');
+    await widget.vault.writeInviteCooldown(_cooldownTarget());
+    if (mounted) _forward();
   }
 
   int _cooldownTarget() =>
       DateTime.now().millisecondsSinceEpoch ~/ 1000 +
       TowerFacade.pushInviteCooldown;
 
-  void _forward(BuildContext context) {
+  void _forward() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
         builder: (_) => WebStage(
-          link: contentLink,
-          vault: vault,
-          pushHub: pushHub,
-          linkWatch: linkWatch,
+          link: widget.contentLink,
+          vault: widget.vault,
+          pushHub: widget.pushHub,
+          linkWatch: widget.linkWatch,
         ),
       ),
     );
@@ -72,13 +91,13 @@ class PushInviteStage extends StatelessWidget {
           label: 'Accept',
           compact: landscape,
           width: landscape ? size.width * 0.34 : size.width * 0.7,
-          onTap: () => _accept(context),
+          onTap: _accept,
         ),
         SizedBox(height: landscape ? 8 : 16),
         SkyTextButton(
           label: 'Skip',
           compact: landscape,
-          onTap: () => _skip(context),
+          onTap: _skip,
         ),
       ],
     );

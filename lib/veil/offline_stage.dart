@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_assets.dart';
+import '../bridge/insight.dart';
 import 'glass_button.dart';
 
 /// Shown when the device has no connection. Uses the project's dedicated
@@ -18,8 +19,15 @@ class OfflineStage extends StatefulWidget {
 class _OfflineStageState extends State<OfflineStage> {
   bool _busy = false;
 
+  @override
+  void initState() {
+    super.initState();
+    Insight.screen('offline');
+  }
+
   Future<void> _retry() async {
     if (_busy) return;
+    Insight.event('offline_retry');
     setState(() => _busy = true);
     await Future<void>.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;

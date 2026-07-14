@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_assets.dart';
+import '../bridge/insight.dart';
 import '../game/logic/board.dart';
 import '../game/models/level_config.dart';
 import '../game/models/tile.dart';
@@ -35,6 +36,8 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
+    Insight.screen('game');
+    Insight.tag('level', '${widget.config.index}');
     _startNewGame();
   }
 
@@ -90,6 +93,9 @@ class _GameScreenState extends State<GameScreen> {
   Future<void> _onWin() async {
     _finished = true;
     final int stars = widget.config.starsForMoves(_moves);
+    Insight.event('game_win');
+    Insight.tag('last_win_level', '${widget.config.index}');
+    Insight.tag('last_win_stars', '$stars');
     await widget.store.recordResult(
       levelIndex: widget.config.index,
       stars: stars,
@@ -101,6 +107,8 @@ class _GameScreenState extends State<GameScreen> {
 
   Future<void> _onLose() async {
     _finished = true;
+    Insight.event('game_lose');
+    Insight.tag('last_lose_level', '${widget.config.index}');
     if (!mounted) return;
     await _showResultDialog(won: false, stars: 0);
   }

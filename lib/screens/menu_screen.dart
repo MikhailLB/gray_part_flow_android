@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_assets.dart';
+import '../bridge/insight.dart';
 import '../env/facade.dart';
 import '../state/progress_store.dart';
 import '../theme/app_theme.dart';
@@ -22,6 +23,12 @@ class _MenuScreenState extends State<MenuScreen> {
   // propagates here and into any other UI surface that displays them.
   static final String privacyUrl = TowerFacade.privacyUrl;
   static final String supportUrl = TowerFacade.helpUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    Insight.screen('menu');
+  }
 
   void _openLevels() {
     Navigator.of(context)

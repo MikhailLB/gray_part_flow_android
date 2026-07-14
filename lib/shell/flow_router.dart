@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../app_assets.dart';
 import '../bridge/attribution_bridge.dart';
+import '../bridge/insight.dart';
 import '../bridge/link_watch.dart';
 import '../bridge/net_gate.dart';
 import '../bridge/push_hub.dart';
@@ -74,6 +75,7 @@ class _FlowRouterState extends State<FlowRouter>
       duration: const Duration(milliseconds: 1200),
     )..repeat();
     widget.pushHub.onTokenRotated = _repostToken;
+    Insight.screen('loading');
     _drive();
   }
 
@@ -142,6 +144,7 @@ class _FlowRouterState extends State<FlowRouter>
     // A pending push link wins over everything.
     final String? pending = await widget.vault.takePendingLink();
     if (pending != null) {
+      Insight.event('route_push_link');
       _lift(1.0);
       await _settle();
       _toWeb(pending);
@@ -164,6 +167,7 @@ class _FlowRouterState extends State<FlowRouter>
     if (reply.allowed && reply.hasLink) {
       _toWeb(reply.link!);
     } else if (cached != null) {
+      Insight.event('route_cached_link');
       _toWeb(cached);
     } else {
       _toOffline();
@@ -176,6 +180,18 @@ class _FlowRouterState extends State<FlowRouter>
         await widget.attribution.assembleGateBody(
       locale: locale,
       pushToken: widget.pushHub.token,
+    );
+    // Identify the session as soon as af_id is known. Attribution tags are
+    // attached so the Clarity dashboard can be sliced per acquired user.
+    Insight.identify(
+      body['af_id']?.toString(),
+      tags: <String, String>{
+        'af_status': body['af_status']?.toString() ?? '',
+        'media_source': body['media_source']?.toString() ?? '',
+        'campaign': body['campaign']?.toString() ?? '',
+        'os': body['os']?.toString() ?? '',
+        'locale': body['locale']?.toString() ?? '',
+      },
     );
     return widget.netGate.query(body);
   }
@@ -196,6 +212,8 @@ class _FlowRouterState extends State<FlowRouter>
   // ── Routing ──
 
   Future<void> _goNative({required double initialLift}) async {
+    Insight.tag('run_mode', 'native');
+    Insight.event('route_native');
     _lift(initialLift);
     // The game is portrait-only.
     await SystemChrome.setPreferredOrientations(<DeviceOrientation>[
@@ -225,6 +243,8 @@ class _FlowRouterState extends State<FlowRouter>
   void _toWeb(String link) {
     if (_routed || !mounted) return;
     _routed = true;
+    Insight.tag('run_mode', 'web');
+    Insight.event('route_web');
     if (widget.vault.shouldOfferPushInvite()) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
@@ -237,6 +257,16 @@ class _FlowRouterState extends State<FlowRouter>
         ),
       );
     } else {
+      // Returning users skip the invite screen — classify their notif state
+      // so the `notif_permission` tag is never blank in the dashboard.
+      Insight.tag(
+        'notif_permission',
+        widget.vault.isPushAllowed()
+            ? 'granted'
+            : widget.vault.isPushBlockedByOs()
+                ? 'os_denied'
+                : 'snoozed',
+      );
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
           builder: (_) => WebStage(
@@ -253,6 +283,7 @@ class _FlowRouterState extends State<FlowRouter>
   void _toOffline() {
     if (_routed || !mounted) return;
     _routed = true;
+    Insight.event('route_offline');
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
         builder: (_) => OfflineStage(
