@@ -101,11 +101,24 @@ class _WebStageState extends State<WebStage> with WidgetsBindingObserver {
   }
 
   void _enterImmersive() {
-    // Full immersive: hides both the status bar and navigation bar so no system
-    // "HUD" shows over the content in either orientation. The keyboard is
-    // handled purely by the JS scrollIntoView fix (visualViewport), so we do
-    // NOT need the window to physically resize.
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    // Hide the status bar, but keep the navigation bar drawn (transparent) so
+    // its geometry is stable. immersiveSticky lets Android FORCIBLY re-show
+    // the nav bar the moment an input is focused — on 3-button navigation the
+    // tall bar appears mid-frame and the WebView layout jumps (visible jitter
+    // in landscape especially). Manual mode with only the bottom overlay
+    // keeps the bar always present so the viewport never resizes for it.
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: <SystemUiOverlay>[SystemUiOverlay.bottom],
+    );
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.light,
+      systemNavigationBarContrastEnforced: false,
+    ));
   }
 
   @override
@@ -542,12 +555,14 @@ class _WebStageState extends State<WebStage> with WidgetsBindingObserver {
         body: Stack(
           fit: StackFit.expand,
           children: <Widget>[
-            // Keep a safe zone around the camera cutout in BOTH orientations
-            // (top in portrait, side in landscape). System bars are hidden, so
-            // only the display-cutout inset remains. No bottom inset: the
-            // keyboard is handled by the JS scroll fix.
-            SafeArea(
-              bottom: false,
+            // Reserve space for the display-cutout AND the (always-drawn but
+            // transparent) navigation bar. Using `viewPadding` — not
+            // `padding` — gives raw system inset values that DO NOT shrink
+            // when the IME opens, so the WebView keeps a constant frame and
+            // stops jumping on keyboard show/hide (especially on 3-button
+            // navigation devices in landscape).
+            Padding(
+              padding: MediaQuery.viewPaddingOf(context),
               child: WebViewWidget(controller: _web),
             ),
             if (_spinner && !landscape)
