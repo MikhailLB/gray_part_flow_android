@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_assets.dart';
 import '../game/models/tile.dart';
-import '../theme/app_theme.dart';
+import '../app/relay_theme.dart';
 
 /// Renders a single building tile with spawn (scale-in) and merge (pop)
 /// animations driven by a local controller.
@@ -121,7 +121,7 @@ class _LevelBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
-          color: AppColors.sunset,
+          color: RelayPalette.sunset,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: Colors.white, width: 1.5),
         ),

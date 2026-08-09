@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../app/relay_theme.dart';
 import '../app_assets.dart';
-import '../bridge/insight.dart';
-import '../env/facade.dart';
+import '../relay/config/legal_urls.dart';
 import '../state/progress_store.dart';
-import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
 import 'levels_screen.dart';
 import 'webview_screen.dart';
@@ -19,16 +18,10 @@ class MenuScreen extends StatefulWidget {
 }
 
 class _MenuScreenState extends State<MenuScreen> {
-  // Sourced from TowerFacade so a single edit in lib/env/legal_links.dart
-  // propagates here and into any other UI surface that displays them.
-  static final String privacyUrl = TowerFacade.privacyUrl;
-  static final String supportUrl = TowerFacade.helpUrl;
-
-  @override
-  void initState() {
-    super.initState();
-    Insight.screen('menu');
-  }
+  // Public URLs live in lib/relay/config/legal_urls.dart so a
+  // single edit propagates here and into any other UI surface.
+  static const String privacyUrl = privacyLink;
+  static const String supportUrl = supportLink;
 
   void _openLevels() {
     Navigator.of(context)
@@ -85,7 +78,7 @@ class _MenuScreenState extends State<MenuScreen> {
                   PrimaryButton(
                     label: 'Privacy Policy',
                     icon: Icons.privacy_tip_rounded,
-                    color: AppColors.skyDeep,
+                    color: RelayPalette.skyDeep,
                     width: 240,
                     onPressed: () => _openWeb('Privacy Policy', privacyUrl),
                   ),
@@ -93,7 +86,7 @@ class _MenuScreenState extends State<MenuScreen> {
                   PrimaryButton(
                     label: 'Support',
                     icon: Icons.support_agent_rounded,
-                    color: AppColors.skyDeep,
+                    color: RelayPalette.skyDeep,
                     width: 240,
                     onPressed: () => _openWeb('Support', supportUrl),
                   ),
@@ -125,9 +118,9 @@ class _TotalStarsChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          const Icon(Icons.star_rounded, color: AppColors.star, size: 22),
+          const Icon(Icons.star_rounded, color: RelayPalette.star, size: 22),
           const SizedBox(width: 6),
-          Text('$total', style: AppTheme.titleStyle(size: 18)),
+          Text('$total', style: RelayTheme.titleStyle(size: 18)),
         ],
       ),
     );

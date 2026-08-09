@@ -1,25 +1,25 @@
 # ============================================================
-# Gray-Part Flow — Flutter/Android template
+# Relay Flow — Flutter/Android template
 # ============================================================
-# This template ships as `gray_part_template`. On every new project:
+# This template ships as `relay_template`. Every new project runs
+# `dart run tool/forge/mint.dart` which rotates:
 #
-#   1. Rename `name:` below to a UNIQUE Dart package name (snake_case,
-#      no dots). Keep it different from every previous project — the
-#      package name shows up as a Dart symbol in the compiled artefact.
-#   2. Rename `description:` to something believable for the store
-#      listing (a short game / app description, not a template blurb).
-#   3. Bump `version:` back to `1.0.0+1` on the first build of the new
-#      project; subsequent releases bump `+N` per rule
-#      `gray_part_pitfalls.md` §8.
-#   4. Diversify a few minor plugin versions (not the majors) — see
-#      android_gray_guide.md §"Library Versions Reference".
+#   • `name:`         — a fresh snake_case slug of the display name
+#   • `description:`  — a short white-part game description
+#   • `version:`      — reset to 1.0.0+1 for the first build
+#   • minor version   — a subset of plugins gets a minor bump so no
+#                       two consecutive projects share the exact
+#                       dependency graph. See
+#                       `.cursor/rules/portfolio_registry.md`.
 #
-# [FINGERPRINT] Never ship two consecutive projects with an identical
-# `name:` / `description:` / `version:` triplet.
+# [FORGE] Never ship two consecutive projects with an identical
+# `name:` / `description:` / `version:` triplet, and never with the
+# same dependency version tuple. `mint.dart` refuses to run against
+# the portfolio registry if it would create a duplicate.
 # ============================================================
 
-name: gray_part_template # [TODO] rename per project
-description: "Gray-Part Flow template — replace this description per project." # [TODO]
+name: relay_template # [FORGE]
+description: "Relay template — regenerated per project by tool/forge." # [FORGE]
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -32,7 +32,7 @@ dependencies:
 
   cupertino_icons: ^1.0.8
 
-  # ── Gray-flow stack ──
+  # ── Relay flow stack ──
   # ⚠️ DO NOT upgrade file_picker beyond 8.x — see
   # gray_part_pitfalls.md §1 (Kotlin-only 10.x collides with Flutter
   # KGP). This template does not depend on file_picker (native chooser
@@ -50,7 +50,6 @@ dependencies:
   device_info_plus: 11.4.0
   http: ^1.6.0
   url_launcher: ^6.3.2
-  clarity_flutter: ^1.1.0
 
 dev_dependencies:
   flutter_test:
@@ -62,18 +61,17 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # [TODO] Rename the second folder to your project-specific addon
-  # pack (see .cursor/rules/custom_screens.md → [FINGERPRINT] section)
-  # and keep the first folder for game artwork.
+  # [FORGE] Rename the second folder to a project-specific addon
+  # pack. The forge tool renames it on disk and rewrites this
+  # declaration in one step — do not hand-edit.
   assets:
     - assets/gameplay_assets/
     - assets/SkywardTowers_additional_assets_webp/
 
 flutter_launcher_icons:
-  # [TODO] Replace the source PNGs before shipping. Requirements:
+  # [FORGE] Replace the source PNGs before shipping. Requirements:
   #   • adaptive icon fills the mask, no empty borders, no clipping
-  #   • different silhouette from the notification icon (ic_notification)
-  # See android_gray_guide.md §"App Requirements" and TZ §7.
+  #   • different silhouette from the notification icon
   android: true
   ios: true
   image_path: "assets/generated/app_icon.png"

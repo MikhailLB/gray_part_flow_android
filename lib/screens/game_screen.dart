@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../app/relay_theme.dart';
 import '../app_assets.dart';
-import '../bridge/insight.dart';
 import '../game/logic/board.dart';
 import '../game/models/level_config.dart';
 import '../game/models/tile.dart';
 import '../state/progress_store.dart';
-import '../theme/app_theme.dart';
 import '../widgets/building_tile.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/star_row.dart';
@@ -36,8 +35,6 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
-    Insight.screen('game');
-    Insight.tag('level', '${widget.config.index}');
     _startNewGame();
   }
 
@@ -62,17 +59,14 @@ class _GameScreenState extends State<GameScreen> {
       _busy = true;
       _moves++;
       _score += result.scoreGained;
-      // Include absorbed tiles so they animate into the merge target.
       _renderTiles = <Tile>[..._board.tiles, ...result.absorbed];
     });
 
     await Future<void>.delayed(_slideDuration);
     if (!mounted) return;
 
-    // Drop absorbed tiles; surviving merged tiles pop via justMerged flag.
     setState(() => _renderTiles = List<Tile>.of(_board.tiles));
 
-    // Win check before spawning a new tile.
     if (_board.highestLevel >= widget.config.targetLevel) {
       await _onWin();
       return;
@@ -93,9 +87,6 @@ class _GameScreenState extends State<GameScreen> {
   Future<void> _onWin() async {
     _finished = true;
     final int stars = widget.config.starsForMoves(_moves);
-    Insight.event('game_win');
-    Insight.tag('last_win_level', '${widget.config.index}');
-    Insight.tag('last_win_stars', '$stars');
     await widget.store.recordResult(
       levelIndex: widget.config.index,
       stars: stars,
@@ -107,8 +98,6 @@ class _GameScreenState extends State<GameScreen> {
 
   Future<void> _onLose() async {
     _finished = true;
-    Insight.event('game_lose');
-    Insight.tag('last_lose_level', '${widget.config.index}');
     if (!mounted) return;
     await _showResultDialog(won: false, stars: 0);
   }
@@ -150,8 +139,8 @@ class _GameScreenState extends State<GameScreen> {
             ));
           },
           onMenu: () {
-            Navigator.of(context).pop(); // close dialog
-            Navigator.of(context).pop(); // back to levels
+            Navigator.of(context).pop();
+            Navigator.of(context).pop();
           },
         );
       },
@@ -201,7 +190,7 @@ class _GameScreenState extends State<GameScreen> {
           Expanded(
             child: Text(
               widget.config.title,
-              style: AppTheme.titleStyle(size: 24),
+              style: RelayTheme.titleStyle(size: 24),
             ),
           ),
           IconButton(
@@ -247,12 +236,14 @@ class _GameScreenState extends State<GameScreen> {
             height: side,
             padding: const EdgeInsets.all(pad),
             decoration: BoxDecoration(
-              color: AppColors.boardBg,
+              color: RelayPalette.boardBg,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.panelBorder, width: 4),
+              border: Border.all(color: RelayPalette.panelBorder, width: 4),
               boxShadow: const <BoxShadow>[
                 BoxShadow(
-                    color: Color(0x66000000), blurRadius: 10, offset: Offset(0, 5)),
+                    color: Color(0x66000000),
+                    blurRadius: 10,
+                    offset: Offset(0, 5)),
               ],
             ),
             child: Stack(
@@ -280,7 +271,7 @@ class _GameScreenState extends State<GameScreen> {
             padding: EdgeInsets.all(cell * 0.06),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: AppColors.boardCell,
+                color: RelayPalette.boardCell,
                 borderRadius: BorderRadius.circular(cell * 0.16),
               ),
             ),
@@ -319,9 +310,9 @@ class _StatChip extends StatelessWidget {
       width: 96,
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.panel,
+        color: RelayPalette.panel,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.panelBorder, width: 2),
+        border: Border.all(color: RelayPalette.panelBorder, width: 2),
       ),
       child: Column(
         children: <Widget>[
@@ -330,7 +321,7 @@ class _StatChip extends StatelessWidget {
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: AppColors.panelBorder,
+              color: RelayPalette.panelBorder,
               letterSpacing: 1,
             ),
           ),
@@ -339,7 +330,7 @@ class _StatChip extends StatelessWidget {
             style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w900,
-              color: AppColors.woodDark,
+              color: RelayPalette.woodDark,
             ),
           ),
         ],
@@ -409,10 +400,10 @@ class _ResultDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: AppColors.cream,
+      backgroundColor: RelayPalette.cream,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(24),
-        side: const BorderSide(color: AppColors.panelBorder, width: 4),
+        side: const BorderSide(color: RelayPalette.panelBorder, width: 4),
       ),
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -424,7 +415,7 @@ class _ResultDialog extends StatelessWidget {
               style: TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w900,
-                color: won ? AppColors.brick : AppColors.woodDark,
+                color: won ? RelayPalette.brick : RelayPalette.woodDark,
               ),
             ),
             const SizedBox(height: 16),
@@ -432,14 +423,14 @@ class _ResultDialog extends StatelessWidget {
               StarRow(earned: stars, size: 44, spacing: 6)
             else
               const Icon(Icons.sentiment_dissatisfied_rounded,
-                  size: 54, color: AppColors.woodDark),
+                  size: 54, color: RelayPalette.woodDark),
             const SizedBox(height: 16),
             Text(
               'Score: $score',
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: AppColors.woodDark,
+                color: RelayPalette.woodDark,
               ),
             ),
             const SizedBox(height: 24),
@@ -450,14 +441,14 @@ class _ResultDialog extends StatelessWidget {
             PrimaryButton(
               label: 'Retry',
               width: 220,
-              color: AppColors.skyDeep,
+              color: RelayPalette.skyDeep,
               onPressed: onRetry,
             ),
             const SizedBox(height: 12),
             PrimaryButton(
               label: 'Levels',
               width: 220,
-              color: AppColors.woodDark,
+              color: RelayPalette.woodDark,
               onPressed: onMenu,
             ),
           ],

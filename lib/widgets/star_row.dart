@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
+import '../app/relay_theme.dart';
 
 /// Displays [earned] of 3 filled stars.
 class StarRow extends StatelessWidget {
@@ -25,7 +25,7 @@ class StarRow extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: spacing),
           child: Icon(
             filled ? Icons.star_rounded : Icons.star_outline_rounded,
-            color: filled ? AppColors.star : AppColors.starEmpty,
+            color: filled ? RelayPalette.star : RelayPalette.starEmpty,
             size: size,
             shadows: filled
                 ? const <Shadow>[

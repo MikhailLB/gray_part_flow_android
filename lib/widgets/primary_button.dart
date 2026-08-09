@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
+import '../app/relay_theme.dart';
 
 /// A chunky cartoon-style button with a pressed-state animation.
 class PrimaryButton extends StatefulWidget {
@@ -8,7 +8,7 @@ class PrimaryButton extends StatefulWidget {
     super.key,
     required this.label,
     required this.onPressed,
-    this.color = AppColors.sunset,
+    this.color = RelayPalette.sunset,
     this.icon,
     this.width,
     this.enabled = true,
@@ -83,7 +83,7 @@ class _PrimaryButtonState extends State<PrimaryButton> {
                   child: Text(
                     widget.label,
                     textAlign: TextAlign.center,
-                    style: AppTheme.titleStyle(size: 20),
+                    style: RelayTheme.titleStyle(size: 20),
                   ),
                 ),
               ),

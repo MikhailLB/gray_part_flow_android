@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../app/relay_theme.dart';
 import '../app_assets.dart';
-import '../bridge/insight.dart';
 import '../game/models/level_config.dart';
 import '../state/progress_store.dart';
-import '../theme/app_theme.dart';
 import '../widgets/star_row.dart';
 import 'game_screen.dart';
 
@@ -18,12 +17,6 @@ class LevelsScreen extends StatefulWidget {
 }
 
 class _LevelsScreenState extends State<LevelsScreen> {
-  @override
-  void initState() {
-    super.initState();
-    Insight.screen('levels');
-  }
-
   Future<void> _openLevel(LevelConfig config) async {
     await Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => GameScreen(config: config, store: widget.store),
@@ -97,7 +90,7 @@ class _Header extends StatelessWidget {
             child: Text(
               'Select Level',
               textAlign: TextAlign.center,
-              style: AppTheme.titleStyle(size: 26),
+              style: RelayTheme.titleStyle(size: 26),
             ),
           ),
           const SizedBox(width: 48),
@@ -126,14 +119,17 @@ class _LevelCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: unlocked ? AppColors.panel : const Color(0xFF6F6256),
+          color: unlocked ? RelayPalette.panel : const Color(0xFF6F6256),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: unlocked ? AppColors.panelBorder : const Color(0xFF4A4138),
+            color: unlocked
+                ? RelayPalette.panelBorder
+                : const Color(0xFF4A4138),
             width: 3,
           ),
           boxShadow: const <BoxShadow>[
-            BoxShadow(color: Color(0x55000000), blurRadius: 6, offset: Offset(0, 3)),
+            BoxShadow(
+                color: Color(0x55000000), blurRadius: 6, offset: Offset(0, 3)),
           ],
         ),
         child: Column(
@@ -142,10 +138,10 @@ class _LevelCard extends StatelessWidget {
             if (unlocked) ...<Widget>[
               Text(
                 '${config.index}',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.w900,
-                  color: AppColors.woodDark,
+                  color: RelayPalette.woodDark,
                 ),
               ),
               const SizedBox(height: 6),
@@ -157,7 +153,7 @@ class _LevelCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.woodDark,
+                    color: RelayPalette.woodDark,
                   ),
                 ),
               ),

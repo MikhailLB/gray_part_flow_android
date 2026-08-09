@@ -27,9 +27,9 @@ import io.flutter.plugin.common.MethodChannel
 //      short-int is fine).
 // ============================================================
 class MainActivity : FlutterActivity() {
-    // [FINGERPRINT] Rename per project. Keep in sync with
-    // lib/veil/web_stage.dart → `MethodChannel('...upload...')`.
-    private val channelName = "tower/upload"
+    // [FORGE] Rotated per project by tool/forge/mint.dart. Keep in sync
+    // with lib/relay/stage/portal_stage.dart → `MethodChannel('...')`.
+    private val channelName = "relay/upload"
     private val pickRequest = 0x7A11
     private var pendingResult: MethodChannel.Result? = null
 

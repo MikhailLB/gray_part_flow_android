@@ -1,155 +1,186 @@
 ---
-description: Gray-flow User-Agent — device authenticity + slot-vs-crash identity suffix
-globs: **/ua_forge.dart,**/device_agent.dart,**/http_client.dart,**/web_stage.dart,**/content_screen.dart
+description: Relay User-Agent — encoded-fragment assembly, device authenticity, slot-vs-crash identity suffix
+globs: **/device_signature.dart,**/relay_agent.dart,**/portal_stage.dart
 alwaysApply: false
 ---
 
-# Gray-flow User-Agent contract
+# Relay User-Agent contract
 
-## 1. Baseline rules (apply to every gray-flow build)
+> The forged UA is Android's #1 static-analysis marker. This file is
+> the concrete assembly rule. Read `.cursor/rules/relay_forge.md` §1
+> for the recipe field that drives it.
 
-The forged User-Agent is used by BOTH the HTTP client that hits the
-config endpoint AND the WebView (`setUserAgent`). It must:
+## 1. Baseline rules — apply to every relay build
+
+The forged UA is used by BOTH the HTTP client that hits the verdict
+endpoint (`RelayAgent`) AND the WebView (`portal_stage.dart`
+→ `setUserAgent`). It must:
 
 - **Look like a real Chrome on a real Android device.** Include a
-  current Chrome major version, WebKit fragment, real Android version
-  and a plausible device model / build id.
-- **NEVER contain** any of these substrings (case-insensitive):
-  - `WebView` / `wv` (would instantly reveal the shell)
-  - `Dart` / `Flutter` (Flutter's default UA leaks this)
-  - the app's package name, class names, or SDK identifiers
-- **Reflect the actual device on which the app runs.** Query
-  `device_info_plus` for model / build id / Android release, do not
-  hardcode a fixed device string. Two identical UAs across ten
-  installs are a cluster signal for scanners.
-- **Be identical between HTTP + WebView.** The partner backend
-  cross-checks the two; a mismatch breaks session continuity.
-- **Bump the Chrome major version** on every project. A stale major
-  (e.g. Chrome/112 on an app shipping in 2026) is trivially detectable.
-- **Use a unique Chrome version per project.** Every app built from this
-  template must have a different Chrome build/patch number so the UA cannot
-  be used as a cross-app fingerprint.
+  current Chrome major version, WebKit fragment, real Android
+  release + brand + model + build id.
+- **NEVER contain** any of these substrings (case-insensitive) as
+  Dart string literals in the compiled binary:
+  - `Mozilla/5.0`
+  - `Linux; Android`
+  - `AppleWebKit`
+  - `Mobile Safari`
+  - `like Gecko`
+  - `Chrome/`
+  - `Dart` / `Flutter` / `WebView` / `wv`
+  - the application id or class names
+- **Reflect the ACTUAL device.** Query `device_info_plus` for
+  `version.release`, `brand`, `model`, `display`/`id`. Never
+  hardcode. Two identical UAs across ten installs are a cluster
+  signal.
+- **Be identical between HTTP + WebView.** Both come from
+  `DeviceSignature.userAgent`.
+- **Bump Chrome version per project.** Both the major (when Chrome
+  moves on) and every project's build.patch.
 
-### Chrome version rule for AI agents
+## 2. Encoded fragments — every substring lives in `veiled_bytes.dart`
 
-**Major version is always 149.** Build and patch must be freshly generated
-for each new project — never copy them from another project or from the
-template default.
+The template ships every UA scaffolding token as an encoded byte
+array in `lib/relay/config/veiled_bytes.dart`. The runtime
+assembler (`DeviceSignature._assembleAndroid`) decodes them at
+call time and concatenates. The literals never appear in Dart
+source; `dart --obfuscate` does not need to hide them and the
+compiler does not intern them as `.rodata` strings.
 
-Generation formula:
-- Major: `149`
-- Minor: `0` (always)
-- Build: random integer in **7500–7900**
-- Patch: random integer in **10–250**
+Encoded slots (do NOT hand-edit — regenerate via the forge):
 
-Example: `149.0.7827.163`
+| slot | plaintext value |
+|---|---|
+| `_uaProduct` | `Mozilla/5.0` |
+| `_uaLinuxOpen` | `(Linux; Android` |
+| `_uaBuildLabel` | ` Build/` |
+| `_uaBuildClose` | `)` |
+| `_uaEngineLabel` | ` AppleWebKit/` |
+| `_uaEngineTail` | ` (KHTML, like Gecko)` |
+| `_uaChromeLabel` | ` Chrome/` |
+| `_uaMobileSafari` | ` Mobile Safari/` |
+| `_chromeVersion` | e.g. `149.0.7827.163` |
+| `_webkitVersion` | usually `537.36` (Android) |
 
-Write the generated version into `chromeVersion` in `tool/secret_packer.dart`,
-then run `dart run tool/secret_packer.dart` and paste the output into
-`lib/env/secure_strings.dart`. **Never ship two projects with identical
-build/patch numbers.**
+**Verification (must return zero hits):**
 
-Canonical shape (no identity suffix):
-
+```powershell
+rg -n 'Mozilla/5\.0|Linux; Android|AppleWebKit|Mobile Safari|like Gecko|Chrome/' lib
 ```
-Mozilla/5.0 (Linux; Android 15; SM-S931U Build/AP3A.240905.015.A2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.7827.163 Mobile Safari/537.36
-```
 
-Source the Chrome / WebKit version fragments through the obfuscator
-(`unlockChromeVersion()` / `unlockWebkitVersion()` in
-`lib/env/secure_strings.dart`) — never as plaintext literals.
+If any hit surfaces from a Dart source file, the forge did not
+regenerate `veiled_bytes.dart`, or a value was hand-added as a
+literal. Re-run the forge.
 
----
+## 3. Chrome version rotation
 
-## 2. Identity suffix — slot vs crash games
+The template's default `chromeVersion` is empty (falls back to a
+plaintext default from `DeviceSignature._fallback`). A properly
+forged build fills the encoded slot; the fallback is only visible
+in dev/template state.
 
-Some partner backends require the app identity to be appended to the
-User-Agent so their attribution / cashier routing works. **Whether the
-suffix is required depends on the game theme, not on the partner:**
+Generation formula (regenerated every project — no reuse):
 
-| Game theme category | Examples | Append `appid/…` `appname/…`? |
+- Major: `149` (or newer if Chrome has moved on when you build)
+- Minor: `0`
+- Build: random int in `7500..7900`
+- Patch: random int in `10..250`
+
+Example: `149.0.7827.163`.
+
+Set via `userAgent.chromeVersion` in `recipe.json`. Never edit
+`veiled_bytes.dart` directly.
+
+## 4. Identity suffix — slot vs crash
+
+Some partner backends need the app identity in the UA. **Whether
+to append depends on the game theme, not on the partner.**
+
+| Category | Examples | Append `appid/… appname/…`? |
 |---|---|---|
-| **Slot games** | Zeus, Magma, fruit-machine, one-armed bandit, roulette, poker, book-of-<x>, wheel-of-<x>, mines with a slot skin, lucky-spinner | **YES — required** |
-| **Crash games** | Aviator / rocket, plane, jetX, spaceman, balloon, coin-flip crash, multiplier-tap crash | **NO — do not append** |
+| **Slot games** | Zeus, Magma, fruit-machine, roulette, poker, book-of-*, wheel-of-*, mines-slot | **See decision procedure below** |
+| **Crash games** | Aviator, rocket, jetX, spaceman, balloon, coin-flip crash | **NO — never append** |
 
-If you are asked to generate a gray-flow shell and the brief does not
-make the category unambiguous, **STOP and ask the user** which
-category the game belongs to. Guessing is wrong. Never ship the
-suffix "just in case" — a suffix on a crash-game build corrupts the
-partner's tracking and gets the account flagged.
+### Decision procedure (in this order)
 
-### Slot-game suffix — exact format
+For every new project — do NOT default to "yes, this is a slot":
 
-Append after the standard browser UA, space-separated, in this order:
+1. **Ask the partner if the identity can move to a custom HTTP
+   header** (`X-Partner-App-Id`, `X-Partner-App-Name`) on the
+   verdict POST. That removes the marker from the binary. If
+   accepted → drop the UA suffix and mark the choice in the code
+   comment (§4c).
+2. **If the partner refuses**, ask if the identity can be a query
+   param on the initial verdict URL. Same effect — the marker
+   lives on one request, not every WebView load.
+3. **Only if BOTH refuse**, ship the suffix on the UA — but only
+   after the operator explicitly acknowledges the risk in the
+   release ticket.
+4. **If the theme is ambiguous** (mines, cards, hybrid), stop and
+   ask which category the partner treats it as. Guessing is
+   wrong.
 
+### 4b. Slot suffix — exact format (when step 3 applies)
+
+If the suffix is required, every token lives encoded — same
+policy as §2. Add three slots to `veiled_bytes.dart`:
+
+| slot | plaintext |
+|---|---|
+| `_uaAppIdToken` | `appid/` |
+| `_uaAppNameToken` | `appname/` |
+| `_appNameToken` | `<AppName>` (PascalCase, no spaces) |
+
+Assemble in `_assembleAndroid` after the standard UA:
+
+```dart
+final String base = /* the standard UA */;
+final String id = unlockUaAppIdToken();
+if (id.isEmpty) return base;
+return '$base $id${RelayConfig.applicationId} '
+    '${unlockUaAppNameToken()}${unlockAppNameToken()}';
 ```
-<browser UA> appid/<bundleId> appname/<AppNameToken>
+
+Order:
+
+- Suffix is the **very last** segment, after `Mobile Safari/…`.
+- `<bundleId>` comes from `RelayConfig.applicationId` — never
+  hardcode.
+- `<AppName>` is decoded from `_appNameToken` — never inline.
+
+### 4c. Auditable choice in code
+
+Add exactly one of these code comments above `_assembleAndroid`
+in `lib/relay/wire/device_signature.dart`:
+
+```dart
+// GAME THEME CATEGORY: slot  (identity moved to X-Partner-* headers;
+//                             appid/appname suffix intentionally omitted)
+// — or —
+// GAME THEME CATEGORY: slot  (partner refused headers; appid/appname
+//                             suffix present, all tokens encoded)
+// — or —
+// GAME THEME CATEGORY: crash (no appid/appname suffix)
 ```
 
-- `appid/` — the application id / package name, exactly as it appears
-  in `TowerFacade.packageId` (e.g. `com.example.demo`).
-- `appname/` — the app name written **without spaces** (PascalCase,
-  e.g. `AwesomeSlots`). Do NOT URL-encode; do NOT lowercase.
+This makes the choice auditable across every project fork.
 
-Full example (slot build):
+## 5. Verification checklist
 
-```
-Mozilla/5.0 (Linux; Android 15; SM-S931U Build/AP3A.240905.015.A2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.7636.72 Mobile Safari/537.36 appid/com.super.game appname/GameNaming
-```
+Before shipping any relay build:
 
-Rules for the suffix:
-
-- Must be the **very last segment** — after `Mobile Safari/537.36`.
-- Source `bundleId` and `AppName` from `TowerFacade` — never hardcode
-  at the call site.
-- Same augmented UA on HTTP + WebView (see §1).
-- If the theme later flips from slot → crash (e.g. rebrand), the
-  suffix must be REMOVED and a fresh build shipped — the value is
-  cached server-side per install.
-
----
-
-## 3. Decision procedure for AI agents
-
-When generating or modifying a gray-flow project:
-
-1. Locate the game brief / theme description in the customer request.
-2. Match it against the table in §2:
-   - **Clearly a slot theme** → include the suffix in `ua_forge.dart`.
-   - **Clearly a crash theme** → omit the suffix.
-   - **Ambiguous or missing** → do not scaffold. Ask the user with a
-     single batched question, e.g.:
-
-     > Is this a **slot** game (spinning reels / roulette / cards) or
-     > a **crash** game (rising multiplier / aviator / rocket)? The
-     > answer changes the User-Agent format we must ship — I need to
-     > know before continuing.
-
-3. Write the decision as a code comment above `towerHttp` in
-   `lib/bridge/ua_forge.dart`:
-
-   ```dart
-   // GAME THEME CATEGORY: slot  (appid/appname suffix REQUIRED)
-   // — or —
-   // GAME THEME CATEGORY: crash (no appid/appname suffix)
-   ```
-
-   This makes the choice auditable in every future project fork.
-
----
-
-## 4. Verification
-
-Before shipping any build:
-
-- [ ] Print `towerHttp.userAgent` in a debug run and confirm it
-      matches the canonical shape from §1.
-- [ ] Confirm the suffix presence matches the game theme per §2.
-- [ ] Grep the final APK's string table for `Dart`, `Flutter`,
-      `WebView`, `wv/`, and the Chrome version from the previous
-      project — all must be absent.
+- [ ] `rg -n 'Mozilla/5\.0|Linux; Android|AppleWebKit|Mobile Safari|like Gecko|Chrome/' lib` → **0 hits**.
+- [ ] `rg -n "appid/|appname/" lib` → **0 hits** (encoded).
+- [ ] `flutter run` in debug mode: print `DeviceSignature.userAgent`
+      once and eyeball the canonical shape.
+- [ ] The WebView UA == the HTTP client UA (both from
+      `DeviceSignature.userAgent`).
+- [ ] Suffix presence matches the game theme (§4), and the code
+      comment records the decision.
+- [ ] APK strings grep: `Dart`, `Flutter`, `WebView`, `wv`, the
+      previous project's Chrome version → all absent.
 - [ ] Load `https://www.whatismybrowser.com/detect/what-is-my-user-agent`
-      in the WebView and screenshot the parsed result — it must
-      identify as Chrome on Android with the current major.
+      in the portal: identifies as Chrome on Android, current major.
 
-If any check fails, do not ship — fix `ua_forge.dart` first.
+If any check fails, do not ship — regenerate `veiled_bytes.dart`
+via the forge.

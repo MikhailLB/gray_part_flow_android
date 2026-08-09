@@ -1,32 +1,42 @@
 ---
 description: Safe-area CSS injection must never touch the partner site's own horizontal padding — otherwise responsive layouts collapse and buttons hit the WebView edge.
-globs: **/web_stage.dart,**/web_veil.dart,**/content_screen.dart
+globs: **/portal_stage.dart,**/web_scripts.dart,**/veiled_bytes.dart
 alwaysApply: false
 ---
 
 # WebView safe-area CSS injection — do not squash the partner site
 
-The gray-flow shell injects a CSS override on `onPageFinished` to neutralise
-safe-area insets that would otherwise leave blank strips on notched Android
-devices. This override is easy to overreach with, and if it does the partner
-site renders visibly narrower than in a normal mobile browser: buttons appear
-squeezed together and touch the screen edges instead of keeping their gutters.
+The relay portal (`lib/relay/stage/portal_stage.dart`) injects a small
+set of JavaScript enhancers on `onPageFinished`. One of them neutralises
+`env(safe-area-inset-*)` on notched Android devices — sites that hard-
+code paddings via those variables leave visible blank strips otherwise.
+
+That injection is easy to overreach with, and if it does, the partner
+site renders visibly narrower than in a normal mobile browser: buttons
+appear squeezed together and touch the screen edges instead of keeping
+their gutters. Every JS body lives as an encoded byte array in
+`lib/relay/config/veiled_bytes.dart` and is assembled at runtime by
+`lib/relay/wire/web_scripts.dart`; the forge rewrites those bytes per
+project. The **rules below apply to whatever the byte array decodes
+to** — no matter what codec family the forge picked.
 
 ## Symptom
 
-Comparing the same URL in the WebView vs. Chrome on the same device:
+Comparing the same URL in the portal vs. Chrome on the same device:
 
-- WebView:  content columns extend fully to the left/right edges, no gutters
-- Browser:  content has natural side padding (~12–24 px) as designed by the site
+- Portal:  content columns extend fully to the left / right edges, no
+  gutters.
+- Chrome:  content has natural side padding (~12–24 px) as designed
+  by the site.
 
 The site itself is fine — we broke it with our CSS.
 
 ## Root cause
 
-Older template code (and the greensun_corp reference) shipped this rule:
+Older template code shipped this rule:
 
 ```javascript
-// ❌ BAD — kills the site's own gutters together with the safe-area gap.
+// BAD — kills the site's own gutters together with the safe-area gap.
 'html,body,#__nuxt,#__layout,#app,#root,' +
 '.gameview-mobile-header,.app-header{' +
   'padding-top:0!important;' +
@@ -36,10 +46,11 @@ Older template code (and the greensun_corp reference) shipped this rule:
 '}';
 ```
 
-The intent was to remove the `padding: env(safe-area-inset-*)` gap on the
-site's top header. But zeroing `padding-left/right` and `margin-top` on
-`html/body/#app/#root` also erases the site's designed horizontal padding
-and layout margins — which is what makes the content look "compressed".
+The intent was to remove the `padding: env(safe-area-inset-*)` gap on
+the site's top header. But zeroing `padding-left/right` and `margin-
+top` on `html/body/#app/#root` also erases the site's designed
+horizontal padding and layout margins — which is what makes the
+content look "compressed".
 
 ## Correct pattern
 
@@ -49,10 +60,12 @@ Split the injection into two independent responsibilities:
    (`--sat`, `--sab`, `--safe-top`, ...). Sites that never define such
    variables are unaffected.
 2. **Only touch the visual top spacer**, and only on classes that are
-   known to be sticky/decorative headers — never on `html/body/#app/#root`.
+   known to be sticky / decorative headers — never on
+   `html / body / #app / #root`.
 
 ```javascript
-// ✅ GOOD
+// GOOD — the shape the forge should aim for when generating the
+// encoded body in veiled_bytes.dart.
 var CSS =
   ':root{' +
     '--safe-area-inset-top:0px!important;' +
@@ -73,24 +86,44 @@ var CSS =
 
 ## Hard rules
 
-- ❌ **Never** apply `padding-left:0!important` or `padding-right:0!important`
-     to `html`, `body`, `#__nuxt`, `#__layout`, `#app`, `#root`.
-- ❌ **Never** apply `margin-*:0!important` to those elements either.
-- ✅ Only touch `padding-top` / `margin-top`, and only on the site's
-     known top-spacer class list.
-- ✅ Keep the CSS-variable overrides — they only take effect if the site
-     already declares those variables.
-- ✅ Also skip the whole patch while the keyboard is open (compositor race —
-     see the keyboard-scroll rule in `android_gray_guide.md`).
+- Never apply `padding-left:0!important` or
+  `padding-right:0!important` to `html`, `body`, `#__nuxt`,
+  `#__layout`, `#app`, `#root`.
+- Never apply `margin-*:0!important` to those elements either.
+- Only touch `padding-top` / `margin-top`, and only on the site's
+  known top-spacer class list.
+- Keep the CSS-variable overrides — they only take effect if the
+  site already declares those variables.
+- Also skip the whole patch while the keyboard is open — the
+  compositor may still be resizing at that moment; running the CSS
+  reset then produces a visible pop.
+
+## Forge diversification
+
+The `veil.js` group in `veiled_bytes.dart` holds the encoded bodies.
+The forge is allowed to (and should) diversify:
+
+- Class-list order and length — reorder the header selector list,
+  add / remove one obscure selector per project.
+- CSS-variable coverage — drop one of the aliases (`--sar`, `--sal`)
+  per project.
+- Wrapping — sometimes ship the block as a `<style>` insert, other
+  times as an inline `document.documentElement.style.setProperty`
+  loop. Same effect, different bytecode.
+
+Do **not** vary the *semantics* — the hard rules above must hold in
+every variant. When in doubt, verify with the checklist below.
 
 ## Verification checklist
 
-Before shipping a new project always compare side-by-side on a real device:
+Before shipping a new project always compare side-by-side on a real
+device:
 
-- [ ] Open the same partner URL in Chrome and in the WebView shell
-- [ ] Buttons / cards / grids have identical horizontal gutters
-- [ ] No blank strip above the fixed header from safe-area insets
-- [ ] On landscape with a camera notch, no white bars on the sides
+- Open the same partner URL in Chrome and in the portal.
+- Buttons / cards / grids have identical horizontal gutters.
+- No blank strip above the fixed header from safe-area insets.
+- On landscape with a camera notch, no white bars on the sides.
 
-If the gutters differ, the injection is over-reaching. Adjust the CSS
-before touching anything native — the fix is always in the JS payload.
+If the gutters differ, the injection is over-reaching. Adjust the
+encoded body in `veiled_bytes.dart` before touching anything native
+— the fix is always in the JS payload.

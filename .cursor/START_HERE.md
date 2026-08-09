@@ -1,170 +1,203 @@
 # START HERE — Cursor / AI Agent Entry Point
 
-> **Read this file first. Every time you are asked to work on this
-> project, read this file, then read every file in `.cursor/rules/`
-> before writing any code.**
+> **Read this file first.** Every time you start a new task on this
+> project, read this file top-to-bottom, then read every file in
+> `.cursor/rules/` before writing a single line of code.
 
-This project is a **Gray-Part Flow template** for Android (Flutter).
-The gray-flow architecture is documented in full in
-`.cursor/rules/android_gray_guide.md` — that document is the API
-contract, the state machine, and the setup manual. This file is the
-short "where to look" index that points into it.
+This project is the **Relay Flow template** for Android (Flutter).
+It ships a schematic white-part game (`lib/screens`, `lib/game`, …)
+plus an isolated relay module (`lib/relay`) that implements the
+gray flow (Configured WebView vs native game routing) driven by
+attribution and a remote verdict endpoint.
 
----
-
-## 1. What "gray flow" means (30-second version)
-
-A dual-mode Flutter app:
-
-- **Gray mode** — full-screen WebView loading a URL from a remote
-  config endpoint. Non-organic (paid) users see this.
-- **White mode** — a native game (`lib/screens/*`, `lib/game/*`).
-  Organic users see this. Also what store reviewers see.
-
-The routing decision is made ONCE per install, by the backend, from
-AppsFlyer attribution data. It cannot be spoofed client-side.
-
-Detailed doc: `.cursor/rules/android_gray_guide.md` §"What Is the
-Gray Flow?".
+The template is **not** meant to be copy-pasted into a project.
+Every deployment runs through the forge (`tool/forge/mint.dart`)
+which rotates every fingerprint-sensitive value (codec family +
+salt + stream length, storage key prefix, timing constants,
+channel names, package name, description, URL set, notification
+channel id, MethodChannel name) against a portfolio registry.
+The forge refuses to run if the recipe collides with a shipped
+sibling.
 
 ---
 
-## 2. Where to look for what
+## 1. Read these documents in order
 
-| You need to… | Read |
-|---|---|
-| Understand the whole architecture end-to-end | `.cursor/rules/android_gray_guide.md` (top-to-bottom) |
-| Know the exact config-endpoint request / response | `android_gray_guide.md` §"Config Request Contract" |
-| Know the boot sequence + state transitions | `android_gray_guide.md` §"Gray Flow State Machine" |
-| Handle the OneLink + offline install scenario | `android_gray_guide.md` §"First-Launch UX Contract" |
-| Style the loading screen | `android_gray_guide.md` §"Screen Layout: SplashScreen (Loading)" |
-| Style the push-permission screen | `android_gray_guide.md` §"Screen Layout: NotificationPermissionScreen" |
-| Style the no-internet screen | `android_gray_guide.md` §"Screen Layout: NoInternetScreen" |
-| Avoid the ten known Android bugs | `android_gray_guide.md` §"Android-Specific Bugs & Fixes" + `.cursor/rules/gray_part_pitfalls.md` |
-| Wire the custom screen backgrounds | `.cursor/rules/custom_screens.md` |
-| Configure the WebView safe-area CSS | `.cursor/rules/webview_safe_area_injection.mdc` |
-| Set the User-Agent suffix (Zeus/Magma themes) | `.cursor/rules/gray_user_agent.mdc` |
-| Verify a release is ready to ship | `FINAL_CHECKLIST.md` (this repo, root) |
-
----
-
-## 3. Order of operations for a new project (one-shot generation)
-
-You will normally be handed a customer brief. Do it in this order:
-
-1. **Parse the brief against §"Inputs You Need Before Generating"** in
-   `android_gray_guide.md`. If any starred (★) input is missing (config
-   endpoint, AppsFlyer key, Firebase config, privacy URL, codec seed,
-   icons, screen backgrounds), STOP and ask the user in one batched
-   question. Do not scaffold with placeholders that silently break.
-2. **Refresh the fingerprint.** Every file marked `[FINGERPRINT]` in
-   the code (grep for the marker) must be re-diversified for this
-   project. See §4 below.
-3. **Fill config layer.** In this order:
-   - `lib/env/facade.dart` → identity (packageId / marketId / displayName)
-   - `lib/env/legal_links.dart` → privacy + support URLs
-   - `tool/secret_packer.dart` → paste raw endpoint / AppsFlyer key /
-     Firebase project number
-   - `lib/crypt/obfuscator.dart` → change `_seedPhrase` +
-     `_streamLength` to fresh unique values
-   - Run `dart run tool/secret_packer.dart` → paste the six byte
-     arrays into `lib/env/secure_strings.dart`
-4. **Sync Android identity.** All three MUST match `TowerFacade.packageId`:
-   - `android/app/build.gradle.kts` → `applicationId` + `namespace`
-   - `android/app/src/main/kotlin/**/MainActivity.kt` → `package` line
-     + folder path
-   - `android/app/google-services.json` → `package_name`
-5. **Replace assets.** See `assets/README.md`. Rename the addon
-   folder + swap the six screen webp files + replace launcher icon
-   + replace notification vector.
-6. **OneLink** — update `<data android:host="…"/>` in
-   `android/app/src/main/AndroidManifest.xml` and the `android:label`
-   next to it.
-7. **Build & smoke-test.**
-   - Debug: `flutter run` — verify loading bar reaches ~90 % during
-     network wait, hits 100 % at the route switch, no black frames.
-   - Release: `flutter build apk --release --obfuscate
-     --split-debug-info=build/debug_info`.
-8. **QA against `FINAL_CHECKLIST.md`.** Every point must pass on a
-   real device before shipping.
+1. `.cursor/START_HERE.md` — this file (index + high-level flow).
+2. `.cursor/rules/relay_forge.md` — the forge process, recipe
+   schema, codec registry, mutation targets.
+3. `.cursor/rules/portfolio_registry.md` — anti-collision policy;
+   what MUST be unique per project vs what MAY repeat.
+4. `.cursor/rules/gray_user_agent.mdc` — encoded-fragment UA
+   contract; what to grep to prove no plaintext ships.
+5. `.cursor/rules/webview_safe_area_injection.mdc` — safe rules
+   for the JS enhancers loaded by `WebScripts.installAll`.
+6. `.cursor/rules/gray_part_pitfalls.md` — battle-tested fixes
+   for known Android quirks (file_picker, VPN offline, keyboard
+   drift, 16 KB pages, etc.).
+7. `FINAL_CHECKLIST.md` (repo root) — the pre-ship sweep.
 
 ---
 
-## 4. Fingerprint — mandatory per-project changes
+## 2. Where the code lives
 
-Everything below MUST differ between projects. Grep for the marker
-`[FINGERPRINT]` to find every location — this list mirrors them:
+The relay flow is one isolated Dart tree — every gray-side symbol
+imports from `lib/relay/`. Nothing outside that tree knows about
+verdicts, attribution, push, or the WebView shell.
 
-- `lib/crypt/obfuscator.dart` → `_seedPhrase` + `_streamLength`
-- `lib/env/facade.dart` → `packageId` / `marketId` / `displayName`
-- `lib/env/legal_links.dart` → all three URLs (unique per project)
-- `pubspec.yaml` → `name` + `description` + `version`
-- `lib/app_assets.dart` → `_extra` folder segment
-- `android/app/build.gradle.kts` → `applicationId` + `namespace`
-- `android/app/src/main/kotlin/**/MainActivity.kt` → package + folder,
-  `channelName` string
-- `lib/veil/web_stage.dart` → `MethodChannel('…/upload')` name (keep
-  in sync with MainActivity.kt)
-- `lib/bridge/push_hub.dart` → `kChannelId` + `kChannelName`
-- `AndroidManifest.xml` → `default_notification_channel_id` value +
-  `android:host` OneLink + `android:label`
-- `assets/<addon_folder>/` → folder rename + artwork swap
-- `res/drawable/ic_notification.xml` → new monochrome vector
-- Launcher icon (`assets/generated/app_icon*.png`)
+```
+lib/
+├── main.dart                       bootstrap wiring only
+├── app/
+│   ├── relay_app.dart              root MaterialApp
+│   ├── relay_theme.dart            palette + text styles
+│   └── relay_buttons.dart          shared gray-screen buttons
+├── boot/
+│   └── boot_screen.dart            loading UI, delegates to coordinator
+├── relay/                          ← all gray logic
+│   ├── relay_coordinator.dart      single decide() entry point
+│   ├── codec/veil_codec.dart       string codec (regenerated by forge)
+│   ├── config/
+│   │   ├── relay_config.dart       identity + timing constants
+│   │   ├── legal_urls.dart         public privacy/support URLs
+│   │   └── veiled_bytes.dart       encoded byte arrays
+│   ├── core/landing.dart           sealed Landing + RouteMemory + Verdict
+│   ├── wire/
+│   │   ├── pulse_probe.dart        connectivity + DNS reachability
+│   │   ├── device_signature.dart   User-Agent assembly from encoded fragments
+│   │   ├── relay_agent.dart        http.Client carrying the forged UA
+│   │   ├── beacon_keystore.dart    SharedPreferences + secure storage
+│   │   ├── attribution_pulse.dart  AppsFlyer wrapper + organic rescue
+│   │   ├── verdict_call.dart       POST verdict + cache the URL
+│   │   ├── alert_channel.dart      Firebase Messaging + local notifications
+│   │   ├── inline_beacon.dart      cold-boot push URL reader
+│   │   └── web_scripts.dart        JS enhancer bundle assembler
+│   └── stage/
+│       ├── portal_stage.dart       WebView host (no funnel classification)
+│       ├── permission_stage.dart   push opt-in promo
+│       └── offline_stage.dart      no-connection screen
+├── screens/                        white-part game (Menu / Levels / Game)
+├── game/                           white-part logic
+├── widgets/                        shared UI atoms
+└── state/                          progress persistence
+```
 
-**Also** — vary a few plugin minor versions in `pubspec.yaml`
-(see `android_gray_guide.md` §"Library Versions Reference"). Do not
-copy any version pin exactly from a previous project.
-
----
-
-## 5. Things that must NEVER break (invariants)
-
-If your changes threaten any of the following, STOP and reconsider —
-these are the load-bearing behaviours of the gray flow:
-
-1. **Non-organic + offline install boot** must show the No-Wi-Fi
-   screen on FRAME ONE. Retry after enabling Wi-Fi must reach the
-   WebView through the normal pipeline (attribution → gate →
-   ContentScreen). No black screen, no game screen, no loop.
-2. **Loading bar** starts at 0, monotonically increases, hits 1.0 at
-   the exact frame we push the next route. Never freezes at 100 %,
-   never jumps back.
-3. **Loading screen "Loading…" caption** cycles dots on a stable
-   1200 ms controller. Both orientations show the correct portrait /
-   landscape background.
-4. **`AppMode.pending` never commits to `offline` on a network
-   failure** — only a successful HTTP `{ok:false}` commits offline.
-   Otherwise the app would trap non-organic users into the game
-   forever on the first offline install.
-5. **On offline commit, no further config requests may be sent** for
-   the lifetime of the install. Reinstall is the only reset.
-6. **`push_token` + `firebase_project_id` are omitted from the config
-   body when FCM is not initialised** — never sent as empty strings
-   or `null`.
-7. **WebView back gesture / system back** returns one page inside the
-   WebView. Back-from-first-page does NOT close the WebView.
-8. **File upload input** opens the native chooser (camera + gallery)
-   without a filesystem permission dialog.
-9. **The AppsFlyer conversion data payload is forwarded verbatim** to
-   the config endpoint — no field is renamed, dropped, or added
-   except the seven device-side fields defined in the contract.
-10. **User-Agent looks like a real Chrome on a real Android device** —
-    no `Dart/…` or `Flutter/…` tokens, no `WebView` substring.
-
-For every invariant there is a matching item in `FINAL_CHECKLIST.md`.
+**Never** put gray-flow logic outside `lib/relay/`. **Never**
+import anything from `lib/relay/` into `lib/screens/`, `lib/game/`,
+or `lib/widgets/` — the white surface must be forensically clean
+from the gray flow's dependencies.
 
 ---
 
-## 6. When the user asks something you cannot solve here
+## 3. How the boot pipeline works (30-second version)
 
-- The user is on Windows / PowerShell (paths with spaces are common).
-  Always use PowerShell syntax when running commands.
-- Prefer `dart run tool/…` over ad-hoc PowerShell loops — see the note
-  in `android_gray_guide.md` §"Setup Checklist" Step 2 about integer
-  overflows.
-- If the user asks for iOS work, this template is Android-first;
-  double-check with them before touching `ios/` — some rules
-  (`store_id` prefix, App Store id) explicitly differ.
-- If the user asks you to "make it work like project X", first grep
-  project X's `[FINGERPRINT]` markers to know what MUST diverge.
+```
+main.dart
+  → prime UA + keystore
+  → construct pipeline (probe / pulse / verdict / alerts / coordinator)
+  → runApp(RelayApp)
+
+RelayApp → BootScreen (loading art + progress bar)
+  → coordinator.decide(onProgress: liftProgress)
+  → switch on the returned Landing:
+       GameLanding()        → MenuScreen         (white part)
+       PortalLanding(url)   → PermissionStage or PortalStage (WebView)
+       OfflineLanding()     → OfflineStage       (retry rebuilds boot)
+```
+
+`RelayCoordinator.decide` is the ONLY place gray/native routing is
+decided. It branches on the persisted `RouteMemory` and the current
+state (adapter → DNS probe → verdict / cache / cold-tap URL). All
+timing constants come from `RelayConfig`.
+
+Read `lib/relay/relay_coordinator.dart` when you need to understand
+or extend the decision. Do NOT scatter routing logic across screens.
+
+---
+
+## 4. The forge
+
+`tool/forge/mint.dart` takes a `recipe.json`, encodes every secret
+with the selected codec family, verifies round-trips, refuses if
+the recipe collides with `portfolio.json`, and rewrites 10 files
+across `lib/`, `android/`, and `pubspec.yaml`. It writes
+`forge.lock` capturing the exact mutation applied.
+
+Minimum viable use:
+
+```powershell
+Copy-Item tool/forge/recipe.example.json tool/forge/recipe.json
+# fill every '<...>' placeholder in recipe.json
+dart run tool/forge/mint.dart --dry-run     # shows planned writes
+dart run tool/forge/mint.dart               # applies + updates portfolio
+flutter analyze                             # must pass
+flutter run                                 # smoke-test both branches
+```
+
+The recipe schema, mutation contract, and codec registry are in
+`.cursor/rules/relay_forge.md`. **Read that file before running
+the forge on a new project.**
+
+---
+
+## 5. Things that must NEVER be in the binary
+
+If any of these grep hits are non-zero on a release build, the
+project is not shippable. Every one of them ships zero on a
+freshly forged binary:
+
+```powershell
+# UA scaffolding fragments  ← every one must be encoded
+rg -n 'Mozilla/5\.0|Linux; Android|AppleWebKit|Mobile Safari|like Gecko' lib
+
+# Casino/partner-site funnel vocabulary ← client must never classify
+rg -n 'deposit|cashier|register|login|воронк|касс' lib -i
+
+# Legacy Clarity references ← Clarity was removed entirely
+rg -n 'Clarity|Insight|kClarityProjectId|clarity_flutter|AegisInsight' lib
+
+# Legacy naming (means an old file survived the migration)
+rg -n 'TowerFacade|AppMode|ShellMode|FlowRouter|WebStage|GlassButton' lib
+```
+
+Full grep list lives in `FINAL_CHECKLIST.md`.
+
+---
+
+## 6. Invariants — do not break these
+
+1. `RelayCoordinator.decide` is the only place that emits a
+   `Landing`. Add new destinations by extending the sealed class
+   in `lib/relay/core/landing.dart` — do NOT bypass with ad-hoc
+   `Navigator.pushReplacement`.
+2. Every string that plaintext-clusters (URLs, keys, UA fragments,
+   JS bodies) lives as an encoded byte array in `veiled_bytes.dart`.
+   Add new secrets by appending to `veiled_bytes.dart` AND to the
+   forge encoder — never inline a raw literal in the module.
+3. The client never classifies partner-site pages. No regex for
+   `deposit` / `cashier` / `register` / `login` / `voronka`
+   anywhere. If a funnel is required, it lives server-side.
+4. The WebView carries the same UA as the HTTP client. Both come
+   from `DeviceSignature.userAgent`.
+5. `push_token` and `firebase_project_id` fields are omitted from
+   the verdict body when Firebase failed to initialise — never
+   sent as `""` or `null`.
+6. Storage key prefix is a short random ASCII token ending in `_`.
+   The forge rotates it per project; hand-edits are forbidden.
+7. Numeric constants (timeouts, retries, snoozes) all live in
+   `RelayConfig` — every one has a range in `relay_forge.md`.
+8. Debug logs are `assert`-wrapped so `--release` strips them. No
+   `print(...)`, no `debugPrint(...)` outside `assert(() { ... })`.
+
+---
+
+## 7. Windows / PowerShell notes
+
+The template is developed on Windows. Use PowerShell syntax for
+shell one-liners, `dart run tool/...` for anything doing 64-bit
+integer arithmetic (PowerShell overflows at 32 bits and corrupts
+byte streams — the reason `tool/forge/` is Dart, not PowerShell).
+
+If the user asks for iOS work, this template is Android-first.
+Check with them before editing `ios/`. `RelayConfig.storeId`
+prefixes iOS store ids with `id` — this is intentional and stays.

@@ -1,8 +1,8 @@
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skyward_towers/game/logic/board.dart';
-import 'package:skyward_towers/game/models/tile.dart';
+import 'package:relay_template/game/logic/board.dart';
+import 'package:relay_template/game/models/tile.dart';
 
 void main() {
   group('Board merge logic', () {

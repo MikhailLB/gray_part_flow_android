@@ -974,7 +974,8 @@ by bumping WITHIN or ABOVE these floors (e.g. `^6.18.0` in project A,
    from the table above.
 2. `flutter clean && flutter pub get`.
 3. Rebuild release APK and re-run the non-organic install test
-   (`android_gray_guide.md` §"Testing Guide" → non-organic).
+   (see `.cursor/rules/relay_forge.md` and the coordinator's
+   test matrix in `lib/relay/relay_coordinator.dart`).
 4. Verify in debug logs that `[AppsFlyerService] onInstallConversionData`
    fires within ~3 s of first launch, with correct `af_status` values,
    and that `push_token` is present in the outgoing config request body.

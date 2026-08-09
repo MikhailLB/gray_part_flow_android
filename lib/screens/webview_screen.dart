@@ -2,14 +2,15 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import '../app/relay_theme.dart';
 import '../app_assets.dart';
-import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
 
 enum _Status { checking, offline, loading, ready, error }
 
-/// Opens [url] in an in-app WebView. Shows the no-wifi artwork when the device
-/// is offline or a page fails to load, with a Retry action.
+/// Opens [url] in an in-app WebView. Used by the native game menu
+/// for the Privacy / Support links only — the gray-flow WebView
+/// lives in `lib/relay/stage/portal_stage.dart` and is unrelated.
 class WebViewScreen extends StatefulWidget {
   const WebViewScreen({super.key, required this.title, required this.url});
 
@@ -46,7 +47,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
 
     final WebViewController controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(AppColors.sky)
+      ..setBackgroundColor(RelayPalette.sky)
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (int p) {
@@ -59,7 +60,6 @@ class _WebViewScreenState extends State<WebViewScreen> {
             if (mounted) setState(() => _status = _Status.ready);
           },
           onWebResourceError: (WebResourceError error) {
-            // Only surface main-frame failures as a full error screen.
             if (error.isForMainFrame ?? true) {
               if (mounted) setState(() => _status = _Status.error);
             }
@@ -79,9 +79,9 @@ class _WebViewScreenState extends State<WebViewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.sky,
+      backgroundColor: RelayPalette.sky,
       appBar: AppBar(
-        backgroundColor: AppColors.skyDeep,
+        backgroundColor: RelayPalette.skyDeep,
         foregroundColor: Colors.white,
         title: Text(
           widget.title,
@@ -110,7 +110,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
               LinearProgressIndicator(
                 value: _progress == 0 ? null : _progress / 100,
                 backgroundColor: Colors.transparent,
-                color: AppColors.sunset,
+                color: RelayPalette.sunset,
               ),
           ],
         );
@@ -146,7 +146,7 @@ class _OfflineView extends StatelessWidget {
               children: <Widget>[
                 Text(
                   'No internet connection',
-                  style: AppTheme.titleStyle(size: 20),
+                  style: RelayTheme.titleStyle(size: 20),
                 ),
                 const SizedBox(height: 16),
                 PrimaryButton(
