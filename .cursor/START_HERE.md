@@ -35,7 +35,12 @@ sibling.
 6. `.cursor/rules/gray_part_pitfalls.md` — battle-tested fixes
    for known Android quirks (file_picker, VPN offline, keyboard
    drift, 16 KB pages, etc.).
-7. `FINAL_CHECKLIST.md` (repo root) — the pre-ship sweep.
+7. `.cursor/rules/rust_guard.md` — OPTIONAL native protection
+   layer: a Rust `cdylib` that moves the secrets, crypto, and the
+   network call out of the Dart snapshot. What it is, what it
+   stores, how it joins the white part, and what MUST rotate per
+   app so sibling guards never cluster.
+8. `FINAL_CHECKLIST.md` (repo root) — the pre-ship sweep.
 
 ---
 
@@ -86,6 +91,12 @@ lib/
 import anything from `lib/relay/` into `lib/screens/`, `lib/game/`,
 or `lib/widgets/` — the white surface must be forensically clean
 from the gray flow's dependencies.
+
+> **Optional native guard.** When a project ships the Rust guard, the
+> crate lives in `native/<guard>/` and its `.so` in
+> `android/app/src/main/jniLibs/`; only `lib/relay/**` loads it via
+> `dart:ffi`. See `.cursor/rules/rust_guard.md`. Keep any white-part
+> native math in a *separate* crate — never merge it with the guard.
 
 ---
 
