@@ -63,8 +63,29 @@ tcg_evaluate(conv, af_id, push_token, locale, ua) -> *char   // verdict URL or "
 tcg_notify(message_id, af_id, ua)                 -> *char   // "1" on success
 tcg_afkey()                                       -> *char   // AppsFlyer dev key
 tcg_js()                                          -> *char   // link-fix script
+tcg_ua(release, model, chrome)                    -> *char   // assembled User-Agent
 tcg_free(ptr)                                                // free any of the above
 ```
+
+### User-Agent assembly lives in the guard
+
+The forged UA is **not** built from Dart string fragments (the
+`veiled_bytes.dart` approach in `.cursor/rules/gray_user_agent.mdc`); on the
+Rust-guard branch it is assembled inside the `.so` and handed to Dart via
+`tcg_ua`. This keeps every UA token (`Mozilla/5.0`, `Linux; Android`,
+`AppleWebKit`, `Chrome/`, `Mobile Safari`) out of the Dart snapshot entirely —
+the only thing Dart passes in is the live device info (`version.release`,
+`model`) plus the installed Chrome major, so the UA still reflects the real
+device. The guard holds the template as an obfuscated byte array (same
+`byte ^ MASK[i%len] ^ ((i*K+C)&0xFF)` scheme as the other secrets), with
+placeholders for release / model / chrome, plus plaintext fallbacks for each
+in case Dart passes empty strings. Both the WebView `setUserAgent` and the
+HTTP client read this single value — never diverge.
+
+Dart side: `nativeUserAgent(release, model, chrome)` in `lib/relay/guard_ffi.dart`
+wraps `tcg_ua`; `RelayConfig.loadUserAgent()` reads device info over the
+`tcq/upload`→`device` MethodChannel and primes `RelayConfig.userAgent` once
+from `main()`.
 
 Dart opens `DynamicLibrary.open('<lib>.so')`, runs the networky calls on a
 background `Isolate` (they block), and frees every returned pointer. The gate is

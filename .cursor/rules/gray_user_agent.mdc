@@ -38,6 +38,13 @@ endpoint (`RelayAgent`) AND the WebView (`portal_stage.dart`
 - **Bump Chrome version per project.** Both the major (when Chrome
   moves on) and every project's build.patch.
 
+> **Rust-guard branch:** when a project ships the native guard, the UA is
+> assembled inside the `.so` (`tcg_ua`) instead of `veiled_bytes.dart` — the
+> tokens never enter the Dart snapshot at all. Dart only passes live device
+> info + the installed Chrome major. See `.cursor/rules/rust_guard.md` §3
+> ("User-Agent assembly lives in the guard"). §2 below applies to the
+> Dart-only relay.
+
 ## 2. Encoded fragments — every substring lives in `veiled_bytes.dart`
 
 The template ships every UA scaffolding token as an encoded byte
